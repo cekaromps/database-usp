@@ -163,49 +163,151 @@ export async function deleteRecordAction(id: string) {
 
 export async function createInvoiceWithItemsAction(formData: FormData) {
   const customer = formData.get("customer") as string
+  const attn = formData.get("attn") as string
+  const cc = (formData.get("cc") as string)?.trim() || "-"
+  const term = formData.get("term") as string
+  const validity = formData.get("validity") as string
+  const leadTime = formData.get("leadTime") as string
+  const fromUser = formData.get("fromUser") as string
+  const handphone = formData.get("handphone") as string
   const quotationNumber = formData.get("quotationNumber") as string
-  const noPo = formData.get("noPo") as string
   const dateDeliveryStr = formData.get("dateDelivery") as string
-  const noDo = (formData.get("noDo") as string)?.trim() || "-"
   const noInv = formData.get("noInv") as string
-  const rawRemark = (formData.get("remark") as string)?.trim() || ""
-  const remark = rawRemark && rawRemark.trim() !== "" ? rawRemark.trim() : "-"
+  
+  const rawRemark = formData.get("remark") as string
+  const remark = rawRemark && rawRemark.trim() !== "" ? rawRemark.trim() : "Prices are valid 1 month after offer is sent"
 
   const itemsJson = formData.get("itemsJson") as string
   if (!itemsJson) return "No items added"
 
-  // 🌟 Terima parameter qty dari parse JSON
   const items = JSON.parse(itemsJson) as Array<{ description: string; qty: number; amountIdr: number }>
 
-  if (!customer || !quotationNumber || !noPo || !dateDeliveryStr || !noInv || items.length === 0) {
+  // Validasi kolom-kolom wajib baru
+  if (!customer || !attn || !term || !validity || !leadTime || !fromUser || !handphone || !quotationNumber || !dateDeliveryStr || !noInv || items.length === 0) {
     return "Missing required fields"
   }
 
   try {
     const recordsToInsert = items.map((item) => ({
       customer,
+      attn,
+      cc,
+      term,
+      validity,
+      leadTime,
+      fromUser,
+      handphone,
       quotationNumber,
-      noPo,
       dateDelivery: new Date(dateDeliveryStr),
-      noDo,
       noInv,
       description: item.description || "-",
-      qty: item.qty || 1, // 👈 Masukkan qty ke database
+      qty: item.qty || 1,
       amountIdr: item.amountIdr,
-      remark: remark || null,
+      remark: remark,
     }))
 
     await prisma.$transaction(
       recordsToInsert.map((record) =>
-        prisma.invoiceRecord.create({
-          data: record,
+        prisma.invoice.create({
+          data: record as any,
         })
       )
     )
   } catch (error) {
     console.error(error)
-    return "Failed to save invoice records"
+    return "Failed to save records to the invoice database"
   }
 
-  redirect("/dashboard") 
+  // Arahkan langsung ke halaman cetak PDF
+  redirect(`/dashboard/invoicemaker/print?noInv=${noInv}`) 
 }
+
+// Tambahkan ini di paling bawah file app/actions/record.ts
+export async function updateInvoiceAction(formData: FormData) {
+  const id = formData.get("id") as string
+  const customer = formData.get("customer") as string
+  const attn = formData.get("attn") as string
+  const cc = (formData.get("cc") as string)?.trim() || "-"
+  const term = formData.get("term") as string
+  const validity = formData.get("validity") as string
+  const leadTime = formData.get("leadTime") as string
+  const dateDeliveryStr = formData.get("dateDelivery") as string
+  const fromUser = formData.get("fromUser") as string
+  const handphone = formData.get("handphone") as string
+  const description = formData.get("description") as string
+  const qtyStr = formData.get("qty") as string
+  const amountIdrStr = formData.get("amountIdr") as string
+  const remark = (formData.get("remark") as string)?.trim() || "-"
+
+  if (!id || !customer || !attn || !term || !validity || !leadTime || !dateDeliveryStr || !fromUser || !handphone || !description || !qtyStr || !amountIdrStr) {
+    return "Missing required fields"
+  }
+
+  try {
+    // Jalankan query update murni Prisma berdasarkan ID baris data unik
+    await prisma.invoice.update({
+      where: { id },
+      data: {
+        customer,
+        attn,
+        cc,
+        term,
+        validity,
+        leadTime,
+        fromUser,
+        handphone,
+        description,
+        qty: parseInt(qtyStr, 10) || 1,
+        amountIdr: parseFloat(amountIdrStr) || 0,
+        remark,
+      },
+    })
+  } catch (error) {
+    console.error("Update Invoice Error:", error)
+    return "Failed to update invoice record"
+  }
+
+  // Bersihkan cache halaman list database agar data terbaru langsung muncul
+  revalidatePath("/dashboard/invoice")
+  
+  // Tendang kembali user ke halaman database list utama
+  redirect("/dashboard/invoice")
+}
+
+export async function getNextSubItemNumber(customerName: string) {
+  try {
+    const now = new Date()
+    
+    // 🌟 RUMUS RANGE TANGGAL BULAN BERJALAN MURNI (Mei 2026)
+    // Menghitung dari tanggal 1 jam 00:00 sampai akhir bulan jam 23:59
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+
+    // Bersihkan nama dari imbuhan ekstra untuk akurasi pencarian di DB
+    const cleanCustomer = customerName.replace("PT.", "").replace("PT", "").trim()
+
+    // 🌟 COUNT KODE BARU: Jauh lebih elastis dan akurat
+    const count = await prisma.invoice.count({
+      where: {
+        customer: {
+          contains: cleanCustomer,
+          mode: "insensitive" // Mengabaikan kapitalisasi huruf besar/kecil
+        },
+        createdAt: {
+          gte: firstDayOfMonth,
+          lte: lastDayOfMonth
+        }
+      }
+    })
+
+    // Hitung nomor urut urutan dokumen berikutnya
+    const nextSequence = count + 1
+    
+    // Mengubah angka biasa menjadi format 3 digit teks ("002", "003", dst)
+    return String(nextSequence).padStart(3, "0")
+  } catch (error) {
+    console.error("Error counting sub-items:", error)
+    return "001" // Fallback aman
+  }
+}
+

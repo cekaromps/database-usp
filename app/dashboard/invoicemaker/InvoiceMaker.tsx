@@ -6,7 +6,7 @@ import { createInvoiceWithItemsAction } from "@/app/actions/record"
 interface ItemRow {
   id: number
   description: string
-  qty: number // 👈 Tambah properti qty
+  qty: number
   amountIdr: number
 }
 
@@ -18,7 +18,7 @@ const CUSTOMER_CODES: Record<string, string> = {
   "PT CLADTEK": "034",
   "PT RAAJRATNA": "036",
   "PT ALTECO CHEMICAL": "043",
-  "PT DYNACAST": "078",
+  "PT DYNACAST INDONESIA": "078",
   "PT INDO KREASI GRAFIKA": "092",
   "CV. CILINTON BARAT": "093",
   "PT BROADFAR INDONESIA": "098",
@@ -35,18 +35,20 @@ export default function InvoiceForm() {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   
+  // State Input Metadata Utama
   const [customerName, setCustomerName] = useState("")
   const [quotationNumber, setQuotationNumber] = useState("Q000-2605-001")
   
+  // State khusus Autocomplete
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const autocompleteRef = useRef<HTMLDivElement>(null)
 
-  // 🌟 Tambahkan default nilai qty: 1 pada inisialisasi state awal
   const [items, setItems] = useState<ItemRow[]>([
     { id: Date.now(), description: "", qty: 1, amountIdr: 0 }
   ])
 
+  // Menutup list rekomendasi otomatis jika mengklik area luar form
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
@@ -57,14 +59,22 @@ export default function InvoiceForm() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  useEffect(() => {
+  // 🌟 1. LOGIKA EVENT AMBIL PREFIX TANGGAL (Fungsi Pembantu Lokal)
+  const getDatePrefix = () => {
     const now = new Date()
     const yy = String(now.getFullYear()).slice(-2)
     const mm = String(now.getMonth() + 1).padStart(2, "0")
-    const datePrefix = `${yy}${mm}` 
+    return `${yy}${mm}` // Hasil: "2605"
+  }
 
-    const cleanInput = customerName.toUpperCase().trim()
+  // 🌟 2. EVENT SAAT USER MENGETIK MANUAL DI INPUT FIELD
+  const handleInputChange = (value: string) => {
+    setCustomerName(value)
+    setShowSuggestions(true)
 
+    const cleanInput = value.toUpperCase().trim()
+
+    // Filter rekomendasi dropdown PT
     if (cleanInput.length > 0) {
       const filtered = Object.keys(CUSTOMER_CODES).filter(name =>
         name.toUpperCase().includes(cleanInput)
@@ -74,6 +84,7 @@ export default function InvoiceForm() {
       setSuggestions([])
     }
 
+    // Set format default sementara (Q000-2605-001) sewaktu mengetik setengah jalan
     let companyCode = "000"
     for (const [name, code] of Object.entries(CUSTOMER_CODES)) {
       if (cleanInput === name.toUpperCase()) {
@@ -81,16 +92,36 @@ export default function InvoiceForm() {
         break
       }
     }
+    setQuotationNumber(`Q${companyCode}-${getDatePrefix()}-001`)
+  }
 
-    setQuotationNumber(`Q${companyCode}-${datePrefix}-001`)
-  }, [customerName])
-
+  // 🌟 3. EVENT SAAT USER KLIK PILIHAN NAMA PT DARI DROPDOWN
   const handleSelectSuggestion = (name: string) => {
     setCustomerName(name)
     setShowSuggestions(false)
+
+    const cleanInput = name.toUpperCase().trim()
+    let companyCode = "000"
+    for (const [cName, code] of Object.entries(CUSTOMER_CODES)) {
+      if (cleanInput === cName.toUpperCase()) {
+        companyCode = code.padStart(3, "0")
+        break
+      }
+    }
+
+    // Tembak API murni untuk mengambil angka urutan real-time dari DB
+    fetch(`/api/next-subitem?customer=${encodeURIComponent(name)}&t=${Date.now()}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const dynamicSubItem = data.sequence || "001"
+        // 🚀 Set nilai final secara paksa ke layar tanpa takut diinterupsi useEffect lagi!
+        setQuotationNumber(`Q${companyCode}-${getDatePrefix()}-${dynamicSubItem}`)
+      })
+      .catch(() => {
+        setQuotationNumber(`Q${companyCode}-${getDatePrefix()}-001`)
+      })
   }
 
-  // 🌟 Update fungsi tambah baris agar menyertakan qty: 1 bawaan
   const addItemRow = () => {
     setItems([...items, { id: Date.now(), description: "", qty: 1, amountIdr: 0 }])
   }
@@ -101,7 +132,6 @@ export default function InvoiceForm() {
     }
   }
 
-  // 🌟 Modifikasi fungsi update field agar bisa menangani pembacaan data apa saja (string / number)
   const updateItemField = (id: number, field: keyof ItemRow, value: any) => {
     setItems(items.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
   }
@@ -110,10 +140,6 @@ export default function InvoiceForm() {
     e.preventDefault()
     setError(null)
 
-    const formElement = e.currentTarget
-    const formData = new FormData(formElement)
-    
-    // Validasi item list sebelum simpan data
     const invalidAmount = items.some(item => item.amountIdr <= 0)
     const invalidQty = items.some(item => item.qty <= 0)
     
@@ -122,6 +148,7 @@ export default function InvoiceForm() {
       return
     }
 
+    const formData = new FormData(e.currentTarget)
     formData.append("itemsJson", JSON.stringify(items))
 
     startTransition(async () => {
@@ -140,13 +167,22 @@ export default function InvoiceForm() {
         </div>
       )}
 
+      {/* MONITORING SYNC BAR */}
+      <div className="text-[11px] font-mono bg-macos-tertiary border border-macos-separator p-2 rounded-md text-macos-secondary flex items-center justify-between">
+        <span>Database Sync Monitor :</span>
+        <span className="text-macos-blue font-bold">
+          {customerName ? `Membaca riwayat "${customerName}"...` : "Menunggu pilihan Customer..."}
+        </span>
+      </div>
+
       {/* GENERAL DATA */}
       <div className="bg-macos-popover border border-macos-separator p-6 rounded-xl shadow-2xl space-y-4">
         <h3 className="text-lg font-semibold text-macos-primary border-b border-macos-separator pb-2 mb-2">General Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
+          {/* INPUT CUSTOMER NAME DENGAN AUTOCOMPLETE */}
           <div ref={autocompleteRef} className="relative">
-            <label className="block text-xs font-medium text-macos-secondary mb-1.5">Customer Name *</label>
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">To (Customer Name) *</label>
             <input 
               name="customer" 
               type="text" 
@@ -156,13 +192,11 @@ export default function InvoiceForm() {
               disabled={isPending} 
               placeholder="Ketik nama perusahaan, cth: ALCO..."
               onFocus={() => setShowSuggestions(true)}
-              onChange={(e) => {
-                setCustomerName(e.target.value)
-                setShowSuggestions(true)
-              }}
+              onChange={(e) => handleInputChange(e.target.value)} // 👈 Gunakan fungsi pemicu tunggal terisolasi
               className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition" 
             />
 
+            {/* BOX REKOMENDASI DROPDOWN */}
             {showSuggestions && suggestions.length > 0 && (
               <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-macos-popover border border-macos-separator rounded-lg shadow-2xl z-50 py-1 divide-y divide-macos-separator/40 animate-scale-up">
                 {suggestions.map((name) => (
@@ -170,7 +204,7 @@ export default function InvoiceForm() {
                     key={name}
                     type="button"
                     onClick={() => handleSelectSuggestion(name)}
-                    className="w-full text-left px-3 py-2 text-xs text-macos-primary hover:bg-macos-blue hover:text-white transition cursor-pointer font-medium"
+                    className="w-full text-left px-3 py-2 text-xs text-macos-primary hover:bg-macos-blue hover:text-white transition cursor-pointer font-medium border-none bg-transparent"
                   >
                     🏢 {name}
                   </button>
@@ -179,6 +213,7 @@ export default function InvoiceForm() {
             )}
           </div>
 
+          {/* QUOTATION NUMBER (READ ONLY COOO!) */}
           <div>
             <label className="block text-xs font-medium text-macos-secondary mb-1.5">Quotation Number (Auto-Generated) *</label>
             <input 
@@ -190,26 +225,64 @@ export default function InvoiceForm() {
               className="w-full bg-macos-separator/30 border border-macos-separator text-macos-secondary font-mono rounded-md p-2 text-sm select-none cursor-not-allowed font-semibold opacity-70" 
             />
           </div>
+
+          {/* ATTN */}
           <div>
-            <label className="block text-xs font-medium text-macos-secondary mb-1.5">No. PO *</label>
-            <input name="noPo" type="text" required disabled={isPending} className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition" />
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">Attn *</label>
+            <input name="attn" type="text" required disabled={isPending} placeholder="Mr. Dollvy Suhendra" className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue" />
           </div>
+
+          {/* CC */}
           <div>
-            <label className="block text-xs font-medium text-macos-secondary mb-1.5">Delivery Date *</label>
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">CC</label>
+            <input name="cc" type="text" disabled={isPending} placeholder="-" className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue" />
+          </div>
+
+          {/* TERM */}
+          <div>
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">Term *</label>
+            <input name="term" type="text" required disabled={isPending} placeholder="30 Days" className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue" />
+          </div>
+
+          {/* VALIDITY */}
+          <div>
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">Validity *</label>
+            <input name="validity" type="text" required disabled={isPending} placeholder="1 Week" className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue" />
+          </div>
+
+          {/* LEAD TIME */}
+          <div>
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">Lead Time *</label>
+            <input name="leadTime" type="text" required disabled={isPending} placeholder="Besaide schedule" className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue" />
+          </div>
+
+          {/* DATE */}
+          <div>
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">Date *</label>
             <input name="dateDelivery" type="date" required disabled={isPending} className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition scheme-dark" />
           </div>
+
+          {/* FROM */}
           <div>
-            <label className="block text-xs font-medium text-macos-secondary mb-1.5">No. DO</label>
-            <input name="noDo" type="text" disabled={isPending} className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition" />
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">From *</label>
+            <input name="fromUser" type="text" required disabled={isPending} placeholder="Sitor H" className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue" />
           </div>
+
+          {/* HANDPHONE */}
           <div>
-            <label className="block text-xs font-medium text-macos-secondary mb-1.5">No. Invoice *</label>
-            <input name="noInv" type="text" required disabled={isPending} className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition" />
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">Handphone *</label>
+            <input name="handphone" type="text" required disabled={isPending} placeholder="0821 7277 8530" className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue" />
+          </div>
+
+          {/* NO INVOICE */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">No. Invoice Pelacak Internal *</label>
+            <input name="noInv" type="text" required disabled={isPending} placeholder="cth: 0524" className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue font-semibold" />
           </div>
         </div>
       </div>
 
-      {/* ITEMS DYNAMIC SECTION WITH QTY */}
+      {/* ITEMS DYNAMIC SECTION */}
       <div className="bg-macos-popover border border-macos-separator p-6 rounded-xl shadow-2xl space-y-4">
         <div className="flex items-center justify-between border-b border-macos-separator pb-2 mb-2">
           <h3 className="text-lg font-semibold text-macos-primary">Invoice Items List</h3>
@@ -220,34 +293,21 @@ export default function InvoiceForm() {
         <div className="space-y-3">
           {items.map((item, index) => (
             <div key={item.id} className="flex flex-col sm:flex-row sm:items-end gap-4 bg-macos-base/30 p-4 border border-macos-separator/40 rounded-xl">
-              {/* Kolom Deskripsi */}
               <div className="flex-1 w-full">
                 <label className="block text-xs font-medium text-macos-secondary mb-1.5">Item Description #{index + 1} *</label>
                 <input type="text" required value={item.description} disabled={isPending} onChange={(e) => updateItemField(item.id, "description", e.target.value)} placeholder="e.g. EJECTOR FLANGE MATERIAL : MILD STEEL" className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition" />
               </div>
               
-              {/* 🆕 KOLOM QUANTITY (QTY) */}
-              <div className="w-full sm:w-24">
+              <div className="w-48 sm:w-24">
                 <label className="block text-xs font-medium text-macos-secondary mb-1.5">Qty *</label>
-                <input 
-                  type="number" 
-                  min="1"
-                  required 
-                  value={item.qty} 
-                  disabled={isPending} 
-                  onChange={(e) => updateItemField(item.id, "qty", parseInt(e.target.value, 10) || 1)} 
-                  placeholder="1" 
-                  className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition" 
-                />
+                <input type="number" min="1" required value={item.qty} disabled={isPending} onChange={(e) => updateItemField(item.id, "qty", parseInt(e.target.value, 10) || 1)} className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition" />
               </div>
 
-              {/* Kolom Harga */}
               <div className="w-full sm:w-44">
                 <label className="block text-xs font-medium text-macos-secondary mb-1.5">Amount IDR *</label>
                 <input type="number" step="any" required value={item.amountIdr || ""} disabled={isPending} onChange={(e) => updateItemField(item.id, "amountIdr", parseFloat(e.target.value) || 0)} placeholder="3963900" className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition" />
               </div>
 
-              {/* Tombol Hapus Baris */}
               {items.length > 1 && (
                 <button type="button" onClick={() => removeItemRow(item.id)} disabled={isPending} className="w-full sm:w-auto p-2 mb-0.5 border border-macos-red/20 text-macos-red bg-macos-red/5 rounded-md text-xs hover:bg-macos-red hover:text-white transition cursor-pointer flex justify-center">✕</button>
               )}

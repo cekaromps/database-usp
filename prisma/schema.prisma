@@ -31,3 +31,23 @@ model InvoiceRecord {
   remark              String
   createdAt           DateTime @default(now())
 }
+
+model Invoice {
+  id              String   @id @default(cuid())
+  customer        String   
+  attn            String   
+  cc              String   @default("-")
+  term            String  
+  validity        String  
+  leadTime        String  
+  fromUser        String  
+  handphone       String  
+  quotationNumber String  
+  dateDelivery    DateTime
+  noInv           String  
+  description     String   
+  qty             Int      @default(1)
+  amountIdr       Float    
+  remark          String   @default("Prices are valid 1 month after offer is sent")
+  createdAt       DateTime @default(now())
+}
