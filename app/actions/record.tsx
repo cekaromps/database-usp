@@ -168,7 +168,8 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
   const dateDeliveryStr = formData.get("dateDelivery") as string
   const noDo = (formData.get("noDo") as string)?.trim() || "-"
   const noInv = formData.get("noInv") as string
-  const remark = (formData.get("remark") as string)?.trim() || ""
+  const rawRemark = (formData.get("remark") as string)?.trim() || ""
+  const remark = rawRemark && rawRemark.trim() !== "" ? rawRemark.trim() : "-"
 
   const itemsJson = formData.get("itemsJson") as string
   if (!itemsJson) return "No items added"
