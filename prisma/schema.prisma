@@ -27,6 +27,7 @@ model InvoiceRecord {
   noDo                String
   noInv               String
   amountIdr           Float
+  qty                 Int     @default(1)
   remark              String
   createdAt           DateTime @default(now())
 }

@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import * as XLSX from "xlsx"
+import { redirect } from "next/navigation"
 
 import { Prisma } from "@prisma/client" // 👈 Pastikan import Prisma ini ada di paling atas
 
@@ -158,4 +159,52 @@ export async function deleteRecordAction(id: string) {
 
   // Refresh data tabel secara real-time setelah data dihapus
   revalidatePath("/dashboard/datapodo")
+}
+
+export async function createInvoiceWithItemsAction(formData: FormData) {
+  const customer = formData.get("customer") as string
+  const quotationNumber = formData.get("quotationNumber") as string
+  const noPo = formData.get("noPo") as string
+  const dateDeliveryStr = formData.get("dateDelivery") as string
+  const noDo = (formData.get("noDo") as string)?.trim() || "-"
+  const noInv = formData.get("noInv") as string
+  const remark = (formData.get("remark") as string)?.trim() || ""
+
+  const itemsJson = formData.get("itemsJson") as string
+  if (!itemsJson) return "No items added"
+
+  // 🌟 Terima parameter qty dari parse JSON
+  const items = JSON.parse(itemsJson) as Array<{ description: string; qty: number; amountIdr: number }>
+
+  if (!customer || !quotationNumber || !noPo || !dateDeliveryStr || !noInv || items.length === 0) {
+    return "Missing required fields"
+  }
+
+  try {
+    const recordsToInsert = items.map((item) => ({
+      customer,
+      quotationNumber,
+      noPo,
+      dateDelivery: new Date(dateDeliveryStr),
+      noDo,
+      noInv,
+      description: item.description || "-",
+      qty: item.qty || 1, // 👈 Masukkan qty ke database
+      amountIdr: item.amountIdr,
+      remark: remark || null,
+    }))
+
+    await prisma.$transaction(
+      recordsToInsert.map((record) =>
+        prisma.invoiceRecord.create({
+          data: record,
+        })
+      )
+    )
+  } catch (error) {
+    console.error(error)
+    return "Failed to save invoice records"
+  }
+
+  redirect("/dashboard") 
 }
