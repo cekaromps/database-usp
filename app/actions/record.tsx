@@ -132,6 +132,7 @@ export async function createRecordAction(formData: FormData) {
         noInv,
         amountIdr: parseFloat(amountIdrStr),
         remark,
+        address
       },
     })
   } catch (error) {
@@ -156,6 +157,27 @@ export async function deleteRecordAction(id: string) {
   // Refresh data tabel secara real-time setelah data dihapus
   revalidatePath("/dashboard/datapodo")
 }
+
+const CUSTOMER_DATA: Record<string, { code: string; address: string }> = {
+  "PT OSI": { code: "001", address: "Kawasan Industri Batam Center, Blok A No. 12, Batam" },
+  "PT ALCOTRAINDO BATAM": { code: "006", address: "Jl. Jendral Sudirman No. 5, Sukajadi, Batam" },
+  "PT NOK FREDEUNBERG BATAM": { code: "024", address: "Kawasan Industri Batamindo, Lot 10, Mukakuning" },
+  "PT AMTEK RE-ENGINEERING": { code: "029", address: "Kawasan Industri Lobam, Blok B, Bintan" },
+  "PT CLADTEK": { code: "034", address: "Jl. Tengku Sulung, Batu Ampar, Batam" },
+  "PT RAAJRATNA": { code: "036", address: "Kawasan Industri Batu Ampar, Batam" },
+  "PT ALTECO CHEMICAL": { code: "043", address: "Kawasan Industri Wiraraja, Batam Center" },
+  "PT DYNACAST INDONESIA": { code: "078", address: "Kawasan Industri Sri Sulaeman, Batam" },
+  "PT INDO KREASI GRAFIKA": { code: "092", address: "Kawasan Industri Citra Buana, Batam" },
+  "CV. CILINTON BARAT": { code: "093", address: "Nongsa, Batam" },
+  "PT BROADFAR INDONESIA": { code: "098", address: "Kawasan Industri Batamindo, Mukakuning" },
+  "PT PECM INDONESIA": { code: "096", address: "Tanjung Uncang, Batam" },
+  "PT LABROY": { code: "103", address: "Kawasan Industri Sekupang, Batam" },
+  "PT WAHANA TIRTA MILENIA": { code: "106", address: "Batam Center, Batam" },
+  "PT. BATAM NIAGA": { code: "107", address: "Jl. Raden Patah, Batam" },
+  "PT TSI SMART PRODUCTS": { code: "108", address: "Kawasan Industri Executive, Batam Center" },
+  "PT. BLUE OCEAN LABS": { code: "109", address: "Kawasan Mega Mall, Batam Center" },
+  "PT. BEC": { code: "110", address: "Batam Eco-Green Park Lantai 2, Batam" }
+};
 
 export async function createInvoiceWithItemsAction(formData: FormData) {
   const customer = formData.get("customer") as string
@@ -183,9 +205,22 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
     return "Missing required fields"
   }
 
+  // 🌟 LOGIKA AUTO-FILL ALAMAT SEBELUM INSERT DATABASE
+  const cleanInput = customer.toUpperCase().trim();
+  let detectedAddress = "-"; // Default fallback aman jika tidak cocok
+
+  for (const [name, data] of Object.entries(CUSTOMER_DATA)) {
+    if (cleanInput === name.toUpperCase()) {
+      detectedAddress = data.address; // Alamat otomatis ditarik dari list data di atas
+      break;
+    }
+  }
+
   try {
     const recordsToInsert = items.map((item) => ({
       customer,
+      // 🌟 SESUAIKAN: Ubah kunci di bawah ini menjadi 'address' atau 'customerAddress' sesuai field asli di schema.prisma Anda
+      address: detectedAddress, 
       attn,
       cc,
       term,
@@ -210,7 +245,7 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
       )
     )
   } catch (error) {
-    console.error(error)
+    console.error("Create Invoice Error:", error)
     return "Failed to save records to the invoice database"
   }
 

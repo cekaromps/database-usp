@@ -208,7 +208,7 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
                   <span className="font-bold text-[10px] w-10 shrink-0">To &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</span>
                   <div className="space-y-0.5">
                     <p className="font-black text-neutral-950 text-[10px]">{mainData.customer}</p>
-                    <p className="text-neutral-500 text-[10px] leading-tight">Jalan Rambutan, Batamindo Industrial Park, Muka Kuning, Batam, Indonesia</p>
+                    <p className="text-neutral-500 text-[10px] leading-tight">{mainData.address}</p>
                   </div>
                 </div>
               </td>

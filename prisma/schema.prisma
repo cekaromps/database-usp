@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client"
   output   = "../lib/generated/prisma"
@@ -11,43 +8,44 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  username  String    @unique
+  id        String   @id @default(cuid())
+  username  String   @unique
   password  String
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 }
 
 model InvoiceRecord {
-  id                  String  @id @default(cuid())
-  customer            String
-  description         String
-  quotationNumber     String
-  noPo                String
-  dateDelivery        DateTime
-  noDo                String
-  noInv               String
-  amountIdr           Float
-  qty                 Int     @default(1)
-  remark              String
-  createdAt           DateTime @default(now())
+  id              String   @id @default(cuid())
+  customer        String
+  description     String
+  quotationNumber String
+  noPo            String
+  dateDelivery    DateTime
+  noDo            String
+  noInv           String
+  amountIdr       Float
+  qty             Int      @default(1)
+  remark          String
+  createdAt       DateTime @default(now())
 }
 
 model Invoice {
   id              String   @id @default(cuid())
-  customer        String   
-  attn            String   
+  customer        String
+  attn            String
   cc              String   @default("-")
-  term            String  
-  validity        String  
-  leadTime        String  
-  fromUser        String  
-  handphone       String  
-  quotationNumber String  
+  term            String
+  validity        String
+  leadTime        String
+  fromUser        String
+  handphone       String
+  quotationNumber String
   dateDelivery    DateTime
-  noInv           String  
-  description     String   
+  noInv           String
+  description     String
   qty             Int      @default(1)
-  amountIdr       Float    
+  amountIdr       Float
   remark          String   @default("Prices are valid 1 month after offer is sent")
+  address         String
   createdAt       DateTime @default(now())
 }
