@@ -5,6 +5,8 @@ import { decrypt } from "@/lib/session";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { revalidatePath } from "next/cache";
+// 🌟 IMPORT KOMPONEN TOMBOL BARU KITA
+import DeleteInvoiceButton from "./DeleteInvoiceButton"; 
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +14,16 @@ interface PageProps {
   searchParams: Promise<{ search?: string }>;
 }
 
-// Ganti fungsi handleDeleteInvoice lama Anda menjadi seperti ini:
+// SERVER ACTION: Tetap bersih dan aman berjalan di sisi server
 async function handleDeleteInvoice(formData: FormData) {
   "use server";
-  const id = formData.get("id") as string;
-  if (id) {
+  const noInv = formData.get("noInv") as string;
+  if (noInv) {
     try {
       await prisma.invoice.deleteMany({
-        where: { id: id },
+        where: { noInv: noInv },
       });
-      revalidatePath("/dashboard/invoice")
+      revalidatePath("/dashboard/invoice");
     } catch (error) {
       console.error("Failed to delete invoice:", error);
     }
@@ -35,7 +37,8 @@ export default async function InvoiceListPage({ searchParams }: PageProps) {
 
   const query = (await searchParams).search || "";
 
-  const invoices = await prisma.invoice.findMany({
+  // 1. Tarik semua data item dari database
+  const rawInvoices = await prisma.invoice.findMany({
     where: query
       ? {
           OR: [
@@ -50,6 +53,46 @@ export default async function InvoiceListPage({ searchParams }: PageProps) {
       : undefined,
     orderBy: { createdAt: "desc" },
   });
+
+  // 2. PROSES GROUPING: Kelompokkan berdasarkan Nomor Invoice (noInv)
+  const groupedMap: Record<string, {
+    id: string;
+    noInv: string;
+    quotationNumber: string;
+    customer: string;
+    attn: string;
+    dateDelivery: Date | string;
+    remark: string;
+    totalQty: number;
+    grandTotalIdr: number;
+    itemsCount: number;
+  }> = {};
+
+  rawInvoices.forEach((item) => {
+    const key = item.noInv || "NO-NUMBER";
+    const itemSubtotal = (item.amountIdr || 0) * (item.qty || 1);
+
+    if (!groupedMap[key]) {
+      groupedMap[key] = {
+        id: item.id,
+        noInv: item.noInv,
+        quotationNumber: item.quotationNumber,
+        customer: item.customer,
+        attn: item.attn,
+        dateDelivery: item.dateDelivery,
+        remark: item.remark,
+        totalQty: item.qty || 0,
+        grandTotalIdr: itemSubtotal,
+        itemsCount: 1
+      };
+    } else {
+      groupedMap[key].totalQty += (item.qty || 0);
+      groupedMap[key].grandTotalIdr += itemSubtotal;
+      groupedMap[key].itemsCount += 1;
+    }
+  });
+
+  const invoices = Object.values(groupedMap);
 
   const formatIDR = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -72,7 +115,7 @@ export default async function InvoiceListPage({ searchParams }: PageProps) {
           </Link>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Invoice Database List
+              Invoice Summary Database
             </h1>
             <p className="text-sm text-macos-secondary mt-0.5">
               Logged in as:{" "}
@@ -95,19 +138,15 @@ export default async function InvoiceListPage({ searchParams }: PageProps) {
       {/* SEARCH CONTROL BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h3 className="text-lg font-semibold text-macos-primary">
-          Recorded Quotations
+          Recorded Invoices ({invoices.length})
         </h3>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <form
-            method="GET"
-            action="/dashboard/invoice"
-            className="w-full sm:w-80"
-          >
+          <form method="GET" action="/dashboard/invoice" className="w-full sm:w-80">
             <input
               name="search"
               type="text"
               defaultValue={query}
-              placeholder="Search customer, quotation no, invoice, etc..."
+              placeholder="Search customer, invoice number, etc..."
               className="w-full bg-macos-popover border border-macos-separator text-macos-primary rounded-md px-3 py-1.5 text-sm focus:outline-none focus:border-macos-blue focus:ring-1 focus:ring-macos-blue transition shadow-sm"
             />
           </form>
@@ -123,19 +162,18 @@ export default async function InvoiceListPage({ searchParams }: PageProps) {
       </div>
 
       {/* DISPLAY TABLE SECTION */}
-      {/* 🌟 FIX 1: Menambahkan padding bawah 'pb-32' pada wrapper agar menu baris paling bawah tidak terpotong */}
       <div className="overflow-x-auto rounded-xl border border-macos-separator bg-macos-popover shadow-2xl pb-32">
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr className="bg-macos-tertiary text-macos-secondary border-b border-macos-separator font-medium">
-              <th className="p-3.5">Customer / To</th>
+              <th className="p-3.5 w-1/5">Customer / To</th>
+              <th className="p-3.5">No. Invoice</th>
               <th className="p-3.5">Quotation No</th>
               <th className="p-3.5">Attn</th>
               <th className="p-3.5">Date</th>
-              <th className="p-3.5">No. Invoice</th>
-              <th className="p-3.5">Description</th>
-              <th className="p-3.5 text-center">Qty</th>
-              <th className="p-3.5 text-right">Unit Price (IDR)</th>
+              <th className="p-3.5 text-center">Total Items</th>
+              <th className="p-3.5 text-center">Total Qty</th>
+              <th className="p-3.5 text-right">Grand Total (IDR)</th>
               <th className="p-3.5 pl-6">Remark</th>
               <th className="p-3.5 text-center w-24">Actions</th>
             </tr>
@@ -143,47 +181,34 @@ export default async function InvoiceListPage({ searchParams }: PageProps) {
           <tbody className="divide-y divide-macos-separator/40">
             {invoices.length === 0 ? (
               <tr>
-                <td
-                  colSpan={10}
-                  className="p-8 text-center text-macos-secondary"
-                >
+                <td colSpan={10} className="p-8 text-center text-macos-secondary">
                   No recorded invoices found.
                 </td>
               </tr>
             ) : (
               invoices.map((invoice) => (
-                <tr
-                  key={invoice.id}
-                  className="hover:bg-macos-tertiary/40 transition"
-                >
-                  <td className="p-3.5 text-macos-primary font-medium">
-                    {invoice.customer}
-                  </td>
-                  <td className="p-3.5 text-macos-secondary font-mono">
-                    {invoice.quotationNumber}
-                  </td>
+                <tr key={invoice.noInv} className="hover:bg-macos-tertiary/40 transition">
+                  <td className="p-3.5 text-macos-primary font-medium">{invoice.customer}</td>
+                  <td className="p-3.5 text-macos-primary font-bold font-mono">{invoice.noInv}</td>
+                  <td className="p-3.5 text-macos-secondary font-mono text-xs">{invoice.quotationNumber}</td>
                   <td className="p-3.5 text-macos-secondary">{invoice.attn}</td>
                   <td className="p-3.5 text-macos-secondary">
                     {new Date(invoice.dateDelivery).toLocaleDateString("id-ID")}
                   </td>
-                  <td className="p-3.5 text-macos-secondary font-mono">
-                    {invoice.noInv}
+                  <td className="p-3.5 text-center">
+                    <span className="px-2 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-xs rounded border border-neutral-300 font-medium text-macos-secondary">
+                      {invoice.itemsCount} Jenis
+                    </span>
                   </td>
-                  <td className="p-3.5 text-macos-secondary max-w-[180px] truncate">
-                    {invoice.description}
+                  <td className="p-3.5 text-center font-bold text-macos-primary">{invoice.totalQty} PCS</td>
+                  <td className="p-3.5 text-right font-bold text-macos-blue text-md">
+                    {formatIDR(invoice.grandTotalIdr)}
                   </td>
-                  <td className="p-3.5 text-center font-bold text-macos-primary">
-                    {invoice.qty}
-                  </td>
-                  <td className="p-3.5 text-right font-semibold text-macos-blue">
-                    {formatIDR(invoice.amountIdr)}
-                  </td>
-                  <td className="p-3.5 pl-6 text-macos-secondary italic max-w-[130px] truncate">
+                  <td className="p-3.5 pl-6 text-macos-secondary italic max-w-[150px] truncate">
                     {invoice.remark}
                   </td>
 
                   {/* TRIPLE DOT CONTEXT MENU */}
-                  {/* Cari bagian kolom Actions ini di dalam loop table body records.map: */}
                   <td className="p-3.5 text-center overflow-visible">
                     <div className="relative inline-block text-left group">
                       <span className="p-2 hover:bg-macos-tertiary rounded-md text-macos-secondary hover:text-macos-primary font-bold transition text-md leading-none select-none cursor-pointer">
@@ -193,10 +218,10 @@ export default async function InvoiceListPage({ searchParams }: PageProps) {
                       {/* Dropdown Box Menu */}
                       <div className="absolute right-2 top-full mt-1 hidden group-hover:block w-44 bg-macos-popover border border-macos-separator rounded-lg shadow-2xl z-50 py-1 overflow-hidden animate-scale-up text-left">
                         <Link
-                          href={`/dashboard/invoice/edit?id=${invoice.id}`}
+                          href={`/dashboard/invoice/edit?noInv=${invoice.noInv}`}
                           className="w-full px-4 py-2 text-xs text-macos-primary hover:bg-macos-blue hover:text-white transition flex items-center gap-2 font-medium"
                         >
-                          ✏️ Edit Record Info
+                          ✏️ Edit Invoice Info
                         </Link>
                         <Link
                           href={`/dashboard/invoicemaker/print?noInv=${invoice.noInv}`}
@@ -207,23 +232,11 @@ export default async function InvoiceListPage({ searchParams }: PageProps) {
 
                         <div className="border-t border-macos-separator/50 my-1"></div>
 
-                        {/* 🌟 FORM HAPUS PERBAIKAN: Menjamin input hidden berada sejajar penuh dengan tombol pemicunya */}
-                        <form
-                          action={handleDeleteInvoice}
-                          className="w-full m-0 p-0"
-                        >
-                          <input
-                            type="hidden"
-                            name="id"
-                            value={String(invoice.id)}
-                          />
-                          <button
-                            type="submit"
-                            className="w-full px-4 py-2 text-xs text-left text-macos-red hover:bg-macos-red hover:text-white transition flex items-center gap-2 cursor-pointer font-medium border-none bg-transparent"
-                          >
-                            🗑️ Delete Record
-                          </button>
-                        </form>
+                        {/* 🌟 SEKARANG JADI SUPER BERSIH & AMAN MENGGUNAKAN KOMPONEN BARU KITA */}
+                        <DeleteInvoiceButton 
+                          noInv={invoice.noInv} 
+                          deleteAction={handleDeleteInvoice} 
+                        />
                       </div>
                     </div>
                   </td>

@@ -222,9 +222,9 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
   redirect(`/dashboard/invoicemaker/print?noInv=${noInv}`) 
 }
 
-// Tambahkan ini di paling bawah file app/actions/record.ts
 export async function updateInvoiceAction(formData: FormData) {
-  const id = formData.get("id") as string
+  const noInv = formData.get("noInv") as string
+
   const customer = formData.get("customer") as string
   const attn = formData.get("attn") as string
   const cc = (formData.get("cc") as string)?.trim() || "-"
@@ -234,19 +234,29 @@ export async function updateInvoiceAction(formData: FormData) {
   const dateDeliveryStr = formData.get("dateDelivery") as string
   const fromUser = formData.get("fromUser") as string
   const handphone = formData.get("handphone") as string
-  const description = formData.get("description") as string
-  const qtyStr = formData.get("qty") as string
-  const amountIdrStr = formData.get("amountIdr") as string
   const remark = (formData.get("remark") as string)?.trim() || "-"
 
-  if (!id || !customer || !attn || !term || !validity || !leadTime || !dateDeliveryStr || !fromUser || !handphone || !description || !qtyStr || !amountIdrStr) {
+  if (
+    !noInv ||
+    !customer ||
+    !attn ||
+    !term ||
+    !validity ||
+    !leadTime ||
+    !dateDeliveryStr ||
+    !fromUser ||
+    !handphone
+  ) {
     return "Missing required fields"
   }
 
   try {
-    // Jalankan query update murni Prisma berdasarkan ID baris data unik
-    await prisma.invoice.update({
-      where: { id },
+    // =========================
+    // UPDATE HEADER INVOICE
+    // =========================
+    await prisma.invoice.updateMany({
+      where: { noInv },
+
       data: {
         customer,
         attn,
@@ -256,21 +266,59 @@ export async function updateInvoiceAction(formData: FormData) {
         leadTime,
         fromUser,
         handphone,
-        description,
-        qty: parseInt(qtyStr, 10) || 1,
-        amountIdr: parseFloat(amountIdrStr) || 0,
         remark,
+        noInv,
+        dateDelivery: new Date(dateDeliveryStr),
       },
     })
+
+    // =========================
+    // PARSE ITEM DATA
+    // =========================
+    const itemKeys = [...formData.keys()].filter((key) =>
+      key.startsWith("items[")
+    )
+
+    const groupedItems: any[] = []
+
+    itemKeys.forEach((key) => {
+      const match = key.match(/items\[(\d+)\]\.(.+)/)
+
+      if (!match) return
+
+      const index = Number(match[1])
+      const field = match[2]
+
+      if (!groupedItems[index]) {
+        groupedItems[index] = {}
+      }
+
+      groupedItems[index][field] = formData.get(key)
+    })
+
+    // =========================
+    // UPDATE PER ITEM
+    // =========================
+    for (const item of groupedItems) {
+      await prisma.invoice.update({
+        where: {
+          id: item.id,
+        },
+
+        data: {
+          description: item.description,
+          qty: parseInt(item.qty || "1", 10),
+          amountIdr: parseFloat(item.amountIdr || "0"),
+        },
+      })
+    }
   } catch (error) {
     console.error("Update Invoice Error:", error)
     return "Failed to update invoice record"
   }
 
-  // Bersihkan cache halaman list database agar data terbaru langsung muncul
   revalidatePath("/dashboard/invoice")
-  
-  // Tendang kembali user ke halaman database list utama
+
   redirect("/dashboard/invoice")
 }
 

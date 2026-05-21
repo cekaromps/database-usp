@@ -192,7 +192,7 @@ export default function InvoiceForm() {
               disabled={isPending} 
               placeholder="Ketik nama perusahaan, cth: ALCO..."
               onFocus={() => setShowSuggestions(true)}
-              onChange={(e) => handleInputChange(e.target.value)} // 👈 Gunakan fungsi pemicu tunggal terisolasi
+              onChange={(e) => handleInputChange(e.target.value)} 
               className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition" 
             />
 
@@ -213,7 +213,6 @@ export default function InvoiceForm() {
             )}
           </div>
 
-          {/* QUOTATION NUMBER (READ ONLY COOO!) */}
           <div>
             <label className="block text-xs font-medium text-macos-secondary mb-1.5">Quotation Number (Auto-Generated) *</label>
             <input 

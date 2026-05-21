@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { decrypt } from "@/lib/session"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import Script from "next/script"
 
 export const dynamic = "force-dynamic"
 
@@ -48,107 +49,261 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100 p-4 md:p-8 font-sans antialiased print:bg-white print:p-0">
+    <div className="min-h-screen bg-neutral-200 py-8 px-4 font-sans antialiased print:bg-white print:p-0 print:min-h-0">
       
-      {/* 🌟 ACTION BAR PERBAIKAN: Menggunakan tag <a> href="javascript:window.print()" murni tanpa properti onClick */}
-      <div className="max-w-4xl mx-auto mb-6 bg-white p-4 rounded-xl shadow border border-neutral-200 flex items-center justify-between print:hidden">
+      {/* 🚀 CSS SAKTI: FONT METADATA KECIL & TABEL AGRESIF BESAR */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* --- STYLING DI LAYAR MONITOR (PREVIEW MODE) --- */
+        @media screen {
+          .a4-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: white;
+            padding: 20mm 15mm !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 1px solid #d4d4d4;
+            box-sizing: border-box;
+          }
+        }
+
+        /* --- STYLING PAS DI-PRINT / SAVE PDF --- */
+        @media print {
+          @page {
+            size: A4;
+            margin: 0; 
+          }
+          
+          html, body {
+            width: 210mm !important;
+            height: 297mm !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          .print-hidden-action {
+            display: none !important;
+          }
+
+          .a4-container {
+            width: 210mm !important;
+            height: 297mm !important;
+            padding: 20mm 15mm !important; 
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            box-sizing: border-box;
+            display: block !important;
+          }
+
+          thead {
+            display: table-header-group !important;
+          }
+
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          .footer-section {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+        }
+
+        /* 🎯 KONTROL UKURAN STRUKTUR METADATA (DIKECILKAN SEPERTI PERINTAH) */
+        .meta-table {
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 12px; /* Diperketat jarak antarkotak */
+          margin-top: -12px;
+          margin-bottom: 6px;
+        }
+        .meta-box {
+          border: 1px solid #000000;
+          border-radius: 5px;
+          padding: 8px 10px;
+          font-size: 10.5px; /* Font diperkecil dari 12px agar tidak dominan */
+          vertical-align: top;
+          width: 50%;
+          line-height: 1.4;
+        }
+        .strip-table {
+          width: 100%;
+          border-collapse: collapse;
+          border: 1px solid #000000;
+          text-align: center;
+          font-size: 11px; /* Diperkecil tipis */
+          font-weight: bold;
+          margin-bottom: 16px;
+          background-color: #f9f9f9;
+        }
+        .strip-table td {
+          padding: 6px;
+          border: 1px solid #000000;
+          width: 33.33%;
+        }
+
+        /* 🌟 MASTER TABEL BARANG (DIBUAT BESAR & JELAS) */
+        .main-goods-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13.5px; /* Font dinaikkan agar tulisan item barang terlihat besar dan kontras */
+        }
+        .main-goods-table th {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          padding: 10px 8px;
+        }
+        /* Memberikan tinggi minimal & padding ekstra pada baris item agar tabel terlihat kokoh & besar */
+        .main-goods-table tbody tr.item-row td {
+          padding: 14px 10px !important; 
+          vertical-align: middle;
+        }
+      `}} />
+      
+      {/* ACTION BAR CENTRAL */}
+      <div className="print-hidden-action max-w-[210mm] mx-auto mb-6 bg-white p-4 rounded-xl shadow border border-neutral-300 flex items-center justify-between">
         <Link href="/dashboard" className="text-sm font-medium text-neutral-600 hover:text-black flex items-center gap-2">
           ← Kembali ke Dashboard Central
         </Link>
         <a 
-          href="javascript:window.print()" // 👈 Trik HTML Native untuk memicu cetak tanpa melanggar aturan Server Component
-          className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700 transition shadow-md inline-block text-center"
+          id="manual-print-btn"
+          href="#print" 
+          className="px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700 transition shadow-md inline-block text-center cursor-pointer select-none"
         >
           🖨️ Cetak / Simpan sebagai PDF Resmi
         </a>
       </div>
 
-      <div className="max-w-4xl mx-auto bg-white p-12 border border-neutral-300 shadow-xl print:border-none print:shadow-none print:p-0 text-black">
+      {/* 📄 CONTAINER KERTAS UTAMA */}
+      <div className="a4-container text-black">
         
-        <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
+        {/* KOP SURAT */}
+        <div className="flex justify-between items-start border-b-2 border-black pb-3 mb-3">
           <div className="flex items-center gap-4">
-            <img src="/ups.png" className="h-16 w-auto object-contain select-none" />
+            <img src="/ups.png" className="h-14 w-auto object-contain select-none" />
             <div>
-              <h2 className="text-xl font-bold uppercase tracking-tight text-neutral-900">PT. UTAMA PASOGIT SEJAHTERA</h2>
-              <p className="text-xs text-neutral-700 font-semibold mt-0.5">Komplek Mahkota Niaga Block B No. 5, Batam Centre . Batam 29432 Indonesia</p>
-              <p className="text-[10px] text-neutral-500 font-medium mt-0.5">Email : utamapasogitsejahtera@gmail.com &nbsp;|&nbsp; Tel : (0778) 749 5365</p>
+              <h2 className="text-lg font-bold uppercase tracking-tight text-neutral-900">PT. UTAMA PASOGIT SEJAHTERA</h2>
+              <p className="text-[11px] text-neutral-700 font-semibold mt-0.5">Komplek Mahkota Niaga Block B No. 5, Batam Centre . Batam 29432 Indonesia</p>
+              <p className="text-[9px] text-neutral-500 font-medium mt-0.5">Email : utamapasogitsejahtera@gmail.com &nbsp;|&nbsp; Tel : (0778) 749 5365</p>
             </div>
           </div>
         </div>
 
-        <div className="text-center mb-6">
-          <h1 className="text-md font-bold uppercase tracking-wider underline decoration-1">QUOTATION</h1>
+        <div className="text-center mb-4">
+          <h1 className="text-sm font-bold uppercase tracking-wider underline decoration-1">QUOTATION</h1>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-xs font-medium">
-          <div className="border border-black p-3 rounded-md flex gap-2">
-            <span className="font-bold w-12 shrink-0">To &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</span>
-            <div className="text-neutral-900 space-y-0.5">
-              <p className="font-black">{mainData.customer}</p>
-              <p className="text-neutral-500 text-[11px] leading-snug">Jalan Rambutan, Batamindo Industrial Park, Muka Kuning, Batam, Indonesia</p>
-            </div>
-          </div>
-
-          <div className="border border-black p-3 rounded-md flex justify-between">
-            <div className="flex gap-2">
-              <span className="font-bold w-12 shrink-0">From &nbsp;&nbsp;:</span>
-              <p className="font-semibold text-neutral-800">{mainData.fromUser}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-neutral-500 text-[11px]">Handphone :</p>
-              <p className="font-bold text-neutral-900">{mainData.handphone}</p>
-            </div>
-          </div>
-
-          <div className="border border-black p-3 rounded-md grid grid-cols-3 gap-y-1">
-            <span className="font-bold">Attn</span><span className="col-span-2">: {mainData.attn}</span>
-            <span className="font-bold">CC</span><span className="col-span-2">: {mainData.cc}</span>
-          </div>
-
-          <div className="border border-black p-3 rounded-md grid grid-cols-3 gap-y-1">
-            <span className="font-bold">Term</span><span className="col-span-2">: {mainData.term}</span>
-            <span className="font-bold">Validity</span><span className="col-span-2">: {mainData.validity}</span>
-            <span className="font-bold">Lead Time</span><span className="col-span-2">: {mainData.leadTime}</span>
-          </div>
-        </div>
+        <table className="meta-table">
+          <tbody>
+            <tr>
+              <td className="meta-box">
+                <div className="flex gap-2">
+                  <span className="font-bold text-[8px] w-10 shrink-0">To &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</span>
+                  <div className="space-y-0.5">
+                    <p className="font-black text-neutral-950 text-[8px]">{mainData.customer}</p>
+                    <p className="text-neutral-500 text-[8px] leading-tight">Jalan Rambutan, Batamindo Industrial Park, Muka Kuning, Batam, Indonesia</p>
+                  </div>
+                </div>
+              </td>
+              <td className="meta-box">
+                <div className="flex justify-between items-start w-full">
+                  <div className="flex gap-2">
+                    <span className="font-bold text-[8px] w-10 shrink-0">From &nbsp;&nbsp;:</span>
+                    <p className="font-bold text-neutral-800 text-[8px]">{mainData.fromUser}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-neutral-500 text-[9.5px]">Handphone :</p>
+                    <p className="font-black text-neutral-950">{mainData.handphone}</p>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td className="meta-box">
+                <table className="w-full text-[10.5px]">
+                  <tbody>
+                    <tr>
+                      <td className="font-bold text-[8px] w-10 pb-0.5">Attn</td>
+                      <td className="text-neutral-900 text-[8px] pb-0.5">: {mainData.attn}</td>
+                    </tr>
+                    <tr>
+                      <td className="font-bold w-10 text-[8px]">CC</td>
+                      <td className="text-neutral-900 text-[8px]">: {mainData.cc || "-"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+              <td className="meta-box">
+                <table className="w-full text-[10.5px]">
+                  <tbody>
+                    <tr>
+                      <td className="font-bold w-16 text-[8px] pb-0.5">Term</td>
+                      <td className="text-neutral-900 text-[8px] pb-0.5">: {mainData.term}</td>
+                    </tr>
+                    <tr>
+                      <td className="font-bold w-16 text-[8px] pb-0.5">Validity</td>
+                      <td className="text-neutral-900 text-[8px] pb-0.5">: {mainData.validity}</td>
+                    </tr>
+                    <tr>
+                      <td className="font-bold text-[8px] w-16">Lead Time</td>
+                      <td className="text-neutral-900 text-[8px]">: {mainData.leadTime}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
         {/* STRIP NOMOR KODE QUOTATION DAN TANGGAL */}
-        <div className="grid grid-cols-3 border border-black text-center text-xs font-bold uppercase mb-6 divide-x divide-black bg-neutral-50">
-          <div className="p-2">Quotation No : <span className="font-mono">{mainData.quotationNumber}</span></div>
-          <div className="p-2">Date : {new Date(mainData.dateDelivery).toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, "-")}</div>
-          <div className="p-2">Page : 1/1</div>
-        </div>
+        <table className="strip-table">
+          <tbody>
+            <tr>
+              <td>QUOTATION NO : <span className="font-mono">{mainData.quotationNumber}</span></td>
+              <td>DATE : {new Date(mainData.dateDelivery).toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, "-").toUpperCase()}</td>
+              <td>PAGE : 1/1</td>
+            </tr>
+          </tbody>
+        </table>
 
-        <p className="text-xs italic text-neutral-800 mb-4">
+        <p className="text-[11px] italic text-neutral-800 mb-3">
           Thank you for your enquiry and we are pleased to quote you our best price as follows :
         </p>
 
-        {/* TABEL ITEM BARANG BERGARIS UTAMA */}
-        <div className="border border-black overflow-hidden mb-6">
-          <table className="w-full text-left text-xs border-collapse">
+        {/* 🌟 TABEL UTAMA YANG DIPERBESAR (font-size 13.5px & padding longgar) */}
+        <div className="border border-black mb-5">
+          <table className="main-goods-table">
             <thead>
-              <tr className="border-b border-black font-bold text-center bg-neutral-50">
-                <th className="p-2 border-r border-black w-12">No.</th>
-                <th className="p-2 border-r border-black w-16">Qty</th>
+              <tr className="border-b border-black font-bold text-center bg-neutral-50 text-[11px]">
+                <th className="p-2 border-r border-black w-12 text-center">No.</th>
+                <th className="p-2 border-r border-black w-16 text-center">Qty</th>
                 <th className="p-2 border-r border-black">Description</th>
-                <th className="p-2 border-r border-black w-20">Part No.</th>
+                <th className="p-2 border-r border-black w-20 text-center">Part No.</th>
                 <th className="p-3 border-r border-black w-36 text-right">Unit Price IDR</th>
                 <th className="p-3 text-right w-40">Total Amount IDR</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-200">
+            <tbody className="divide-y divide-neutral-300">
               {invoiceItems.map((item, index) => (
-                <tr key={item.id} className="align-top font-medium">
-                  <td className="p-2.5 border-r border-neutral-300 text-center">{index + 1}</td>
-                  <td className="p-2.5 border-r border-neutral-300 text-center font-bold">{item.qty} PCS</td>
-                  <td className="p-2.5 border-r border-neutral-300 text-neutral-900 font-semibold whitespace-pre-wrap">{item.description}</td>
-                  <td className="p-2.5 border-r border-neutral-300 text-center font-mono">-</td>
-                  <td className="p-3 border-r border-neutral-300 text-right font-mono text-neutral-800">{formatIDR(item.amountIdr)}</td>
-                  <td className="p-3 text-right font-mono font-bold text-neutral-900">{formatIDR(item.amountIdr * item.qty)}</td>
+                <tr key={item.id} className="item-row align-top font-medium">
+                  <td className="border-r border-neutral-300 text-center">{index + 1}</td>
+                  <td className="border-r border-neutral-300 text-center font-bold text-neutral-950">{item.qty} PCS</td>
+                  <td className="border-r border-neutral-300 text-neutral-950 font-bold whitespace-pre-wrap leading-normal">{item.description}</td>
+                  <td className="border-r border-neutral-300 text-center font-mono text-neutral-400">-</td>
+                  <td className="border-r border-neutral-300 text-right font-mono text-neutral-800 font-semibold">{formatIDR(item.amountIdr)}</td>
+                  <td className="text-right font-mono font-black text-neutral-950">{formatIDR(item.amountIdr * item.qty)}</td>
                 </tr>
               ))}
               
-              <tr className="h-40">
+              {/* Spacer Dinamis Menengah */}
+              <tr className="h-10">
                 <td className="border-r border-neutral-300"></td>
                 <td className="border-r border-neutral-300"></td>
                 <td className="border-r border-neutral-300"></td>
@@ -159,7 +314,7 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
 
               <tr className="border-t border-black font-black bg-neutral-50 text-xs">
                 <td colSpan={4} className="p-3 text-right uppercase tracking-wider border-r border-black">Total Amount :</td>
-                <td colSpan={2} className="p-3 text-right text-sm text-neutral-950 font-mono font-black">
+                <td colSpan={2} className="p-3 text-right text-base text-neutral-950 font-mono font-black">
                   IDR &nbsp;&nbsp;{formatIDR(totalAmount)}
                 </td>
               </tr>
@@ -167,28 +322,48 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
           </table>
         </div>
 
-        <div className="border border-black p-4 rounded-md text-xs font-semibold text-neutral-900 mb-6">
-          Remarks : {mainData.remark}
-        </div>
+        {/* CONTAINER PENUTUP */}
+        <div className="footer-section">
+          {/* REMARKS */}
+          <div className="border border-black p-3.5 rounded-md text-[11px] font-semibold text-neutral-900 mb-4">
+            Remarks : {mainData.remark}
+          </div>
 
-        <div className="text-xs text-neutral-800 space-y-1 mb-8">
-          <p>Looking forward to your earlier confirmation</p>
-          <p>Best Regards</p>
-          <p className="italic text-neutral-500 text-[11px] pt-1">This Quotation is computer generated and requires no signature</p>
-        </div>
+          {/* PENUTUP SURAT */}
+          <div className="text-[11px] text-neutral-800 space-y-0.5 mb-5">
+            <p>Looking forward to your earlier confirmation</p>
+            <p>Best Regards</p>
+            <p className="italic text-neutral-400 text-[10px] pt-0.5">This Quotation is computer generated and requires no signature</p>
+          </div>
 
-        <p className="text-xs font-black uppercase text-neutral-900 tracking-wide border-t border-neutral-400 w-52 pt-1.5">
-          PT. Utama Pasogit Sejahtera
-        </p>
+          {/* FOOTER NAMA PERUSAHAAN BAWAH */}
+          <p className="text-[11px] font-black uppercase text-neutral-900 tracking-wide border-t border-neutral-400 w-52 pt-1.5">
+            PT. Utama Pasogit Sejahtera
+          </p>
+        </div>
 
       </div>
 
-      {/* TRIGGER CETAK OTOMATIS */}
-      <script dangerouslySetInnerHTML={{ __html: `
-        setTimeout(() => {
-          window.print();
-        }, 1000);
-      `}} />
+      {/* RUNTIME CLIENT SCRIPT AUTOMATION */}
+      <Script id="print-automation-script" strategy="afterInteractive">
+        {`
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              window.print();
+            }
+          }, 1000);
+
+          const printBtn = document.getElementById('manual-print-btn');
+          if (printBtn) {
+            printBtn.addEventListener('click', (e) => {
+              e.preventDefault();
+              if (typeof window !== 'undefined') {
+                window.print();
+              }
+            });
+          }
+        `}
+      </Script>
     </div>
   )
 }
