@@ -14,6 +14,7 @@ const CUSTOMER_CODES: Record<string, string> = {
   "PT OSI": "01",
   "PT ALCOTRAINDO BATAM": "06",
   "PT NOK FREDEUNBERG BATAM": "024",
+  "PT ORA GLOBAL": "025",
   "PT AMTEK RE-ENGINEERING": "029",
   "PT CLADTEK": "034",
   "PT RAAJRATNA": "036",
@@ -29,6 +30,8 @@ const CUSTOMER_CODES: Record<string, string> = {
   "PT TSI SMART PRODUCTS": "108",
   "PT. BLUE OCEAN LABS": "109",
   "PT. BEC": "110",
+  "PT. KANGLY": "062",
+  "ITEBA": "098",
 };
 
 export default function InvoiceForm() {
