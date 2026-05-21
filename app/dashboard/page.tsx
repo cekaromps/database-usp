@@ -112,6 +112,18 @@ export default async function DashboardPage() {
             </div>
           </div>
 
+          <div className="flex flex-col justify-between p-6 bg-macos-popover/40 border border-macos-separator border-dashed rounded-2xl opacity-60 select-none">
+            <div className="w-10 h-10 rounded-xl bg-macos-tertiary border border-macos-separator flex items-center justify-center text-lg">
+              ⚙️
+            </div>
+            <div className="mt-8">
+              <h4 className="text-md font-semibold text-macos-secondary tracking-tight">Aplikasi</h4>
+              <p className="text-xs text-macos-tertiary mt-1">
+                Pengaturan aplikasi
+              </p>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

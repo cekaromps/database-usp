@@ -126,7 +126,7 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
         .meta-box {
           border: 1px solid #000000;
           border-radius: 5px;
-          padding: 8px 10px;
+          padding: 10px 10px;
           font-size: 10.5px; /* Font diperkecil dari 12px agar tidak dominan */
           vertical-align: top;
           width: 50%;
@@ -158,7 +158,7 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
           font-size: 12px;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          padding: 10px 8px;
+          padding: 10px 10px;
         }
         /* Memberikan tinggi minimal & padding ekstra pada baris item agar tabel terlihat kokoh & besar */
         .main-goods-table tbody tr.item-row td {
@@ -205,21 +205,21 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
             <tr>
               <td className="meta-box">
                 <div className="flex gap-2">
-                  <span className="font-bold text-[8px] w-10 shrink-0">To &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</span>
+                  <span className="font-bold text-[10px] w-10 shrink-0">To &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</span>
                   <div className="space-y-0.5">
-                    <p className="font-black text-neutral-950 text-[8px]">{mainData.customer}</p>
-                    <p className="text-neutral-500 text-[8px] leading-tight">Jalan Rambutan, Batamindo Industrial Park, Muka Kuning, Batam, Indonesia</p>
+                    <p className="font-black text-neutral-950 text-[10px]">{mainData.customer}</p>
+                    <p className="text-neutral-500 text-[10px] leading-tight">Jalan Rambutan, Batamindo Industrial Park, Muka Kuning, Batam, Indonesia</p>
                   </div>
                 </div>
               </td>
               <td className="meta-box">
                 <div className="flex justify-between items-start w-full">
                   <div className="flex gap-2">
-                    <span className="font-bold text-[8px] w-10 shrink-0">From &nbsp;&nbsp;:</span>
-                    <p className="font-bold text-neutral-800 text-[8px]">{mainData.fromUser}</p>
+                    <span className="font-bold text-[10px] w-10 shrink-0">From &nbsp;&nbsp;:</span>
+                    <p className="font-bold text-neutral-800 text-[10px]">{mainData.fromUser}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-neutral-500 text-[9.5px]">Handphone :</p>
+                    <p className="text-neutral-500 text-[10px]">Handphone :</p>
                     <p className="font-black text-neutral-950">{mainData.handphone}</p>
                   </div>
                 </div>
@@ -230,12 +230,12 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
                 <table className="w-full text-[10.5px]">
                   <tbody>
                     <tr>
-                      <td className="font-bold text-[8px] w-10 pb-0.5">Attn</td>
-                      <td className="text-neutral-900 text-[8px] pb-0.5">: {mainData.attn}</td>
+                      <td className="font-bold text-[10px] w-10 pb-0.5">Attn</td>
+                      <td className="text-neutral-900 text-[10px] pb-0.5">: {mainData.attn}</td>
                     </tr>
                     <tr>
-                      <td className="font-bold w-10 text-[8px]">CC</td>
-                      <td className="text-neutral-900 text-[8px]">: {mainData.cc || "-"}</td>
+                      <td className="font-bold w-10 text-[10px]">CC</td>
+                      <td className="text-neutral-900 text-[10px]">: {mainData.cc || "-"}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -244,16 +244,16 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
                 <table className="w-full text-[10.5px]">
                   <tbody>
                     <tr>
-                      <td className="font-bold w-16 text-[8px] pb-0.5">Term</td>
-                      <td className="text-neutral-900 text-[8px] pb-0.5">: {mainData.term}</td>
+                      <td className="font-bold w-16 text-[10px] pb-0.5">Term</td>
+                      <td className="text-neutral-900 text-[10px] pb-0.5">: {mainData.term}</td>
                     </tr>
                     <tr>
-                      <td className="font-bold w-16 text-[8px] pb-0.5">Validity</td>
-                      <td className="text-neutral-900 text-[8px] pb-0.5">: {mainData.validity}</td>
+                      <td className="font-bold w-16 text-[10px] pb-0.5">Validity</td>
+                      <td className="text-neutral-900 text-[10px] pb-0.5">: {mainData.validity}</td>
                     </tr>
                     <tr>
-                      <td className="font-bold text-[8px] w-16">Lead Time</td>
-                      <td className="text-neutral-900 text-[8px]">: {mainData.leadTime}</td>
+                      <td className="font-bold text-[10px] w-16">Lead Time</td>
+                      <td className="text-neutral-900 text-[10px]">: {mainData.leadTime}</td>
                     </tr>
                   </tbody>
                 </table>

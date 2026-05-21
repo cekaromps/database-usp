@@ -62,13 +62,10 @@ export async function uploadExcelAction(formData: FormData) {
       rawAmount = rawAmount.replace(/Rp/g, "").replace(/\./g, "").replace(/,/g, "").trim()
       const parsedAmount = parseFloat(rawAmount) || 0
 
-      // Lewati baris kosong jika deskripsi dan nominal tidak terisi
       if (!row["Description"] && parsedAmount === 0) {
         continue
       }
 
-      // 🌟 PERBAIKAN UTAMA: Gunakan undefined jika kolom Remark di Excel kosong atau tidak diisi
-      // Prisma mewajibkan nilai 'undefined' untuk memberi tahu database agar mengosongkan kolom opsional
       const remarkValue = row["Remark"] && String(row["Remark"]).trim() !== "" 
         ? String(row["Remark"]).trim() 
         : undefined
@@ -82,7 +79,7 @@ export async function uploadExcelAction(formData: FormData) {
         noDo: currentNoDo || "-",
         noInv: currentNoInv || "-",
         amountIdr: parsedAmount,
-        remark: remarkValue, // 👈 Aman dari interupsi 'must not be null'
+        remark: remarkValue, 
       })
     }
 
@@ -90,7 +87,6 @@ export async function uploadExcelAction(formData: FormData) {
       return "No valid rows found to import"
     }
 
-    // Eksekusi transaksi massal di dalam blok sekuensial yang aman
     await prisma.$transaction(
       recordsToInsert.map((item) =>
         prisma.invoiceRecord.create({
