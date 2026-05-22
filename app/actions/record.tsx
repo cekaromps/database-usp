@@ -68,7 +68,7 @@ export async function uploadExcelAction(formData: FormData) {
 
       const remarkValue = row["Remark"] && String(row["Remark"]).trim() !== "" 
         ? String(row["Remark"]).trim() 
-        : undefined
+        : "-"
 
       recordsToInsert.push({
         customer: currentCustomer || "UNKNOWN",
