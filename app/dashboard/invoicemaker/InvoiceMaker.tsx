@@ -32,8 +32,7 @@ const CUSTOMER_CODES: Record<string, string> = {
   "PT. BEC": "110"
 }
 
-// 🌟 DAFTAR MACAM-MACAM PROSES KERJA WORKSHOP FABRICATING
-const AVAILABLE_PROCESSES = ["Grinding", "Milling", "Turning", "Welding", "Bending", "Cutting"]
+const AVAILABLE_PROCESSES = ["Milling", "Turning", "Grinding", "CNC", "EDM", "Wire Cut", "Hardening", "Plating", "Polish"]
 
 export default function InvoiceForm() {
   const [isPending, startTransition] = useTransition()
@@ -256,7 +255,6 @@ export default function InvoiceForm() {
                 )}
               </div>
 
-              {/* 🆕 Baris Bawah: Seksi Pilihan Checkbox Proses Kerja ala macOS */}
               <div className="border-t border-macos-separator/30 pt-3">
                 <span className="block text-[11px] font-medium text-macos-secondary mb-2">Required Machining Processes :</span>
                 <div className="flex flex-wrap gap-x-5 gap-y-2">
