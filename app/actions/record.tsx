@@ -4,8 +4,6 @@ import { revalidatePath } from "next/cache"
 import * as XLSX from "xlsx"
 import { redirect } from "next/navigation"
 
-import { Prisma } from "@prisma/client" // 👈 Pastikan import Prisma ini ada di paling atas
-
 export async function uploadExcelAction(formData: FormData) {
   const file = formData.get("excelFile") as File
   
@@ -201,7 +199,7 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
   const itemsJson = formData.get("itemsJson") as string
   if (!itemsJson) return "No items added"
 
-  const items = JSON.parse(itemsJson) as Array<{ description: string; qty: number; amountIdr: number; processes: string[] }>
+  const items = JSON.parse(itemsJson) as Array<{ description: string; qty: number; amountIdr: number; processes: string[], material: string; }>
 
   // Validasi kolom-kolom wajib baru
   if (!customer || !attn || !term || !validity || !leadTime || !fromUser || !handphone || !quotationNumber || !dateDeliveryStr || !noInv || items.length === 0) {
@@ -243,7 +241,8 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
         amountIdr: item.amountIdr,
         remark: remark,
         processes: processString,
-        address: detectedAddress
+        address: detectedAddress,
+        material: item.material || "-",
       }
     })
 

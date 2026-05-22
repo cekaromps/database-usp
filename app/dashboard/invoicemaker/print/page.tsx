@@ -280,9 +280,13 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
                   <td className="border-r border-neutral-300 text-center text-neutral-500 font-medium">{index + 1}</td>
                   <td className="border-r border-neutral-300 text-center font-bold text-neutral-900">{item.qty} PCS</td>
                   
-                  {/* 🌟 MENAMPILKAN DESKRIPSI UTAMA & LIST PROSES TERPILIH DI BAWAHNYA */}
                   <td className="border-r border-neutral-300 text-neutral-900 font-semibold whitespace-pre-wrap">
                     <div>{item.description}</div>
+                    {item.material && item.material !== "-" && (
+                      <div className="text-[10px] text-neutral-500 font-mono font-medium mt-1 bg-neutral-50 px-1.5 py-0.5 rounded border border-neutral-200 inline-block">
+                        Material: {item.material}
+                      </div>
+                    )}
                     {item.processes && item.processes !== "-" && (
                       <div className="text-[10px] text-neutral-500 font-mono font-medium mt-1 bg-neutral-50 px-1.5 py-0.5 rounded border border-neutral-200 inline-block">
                         Process: {item.processes}

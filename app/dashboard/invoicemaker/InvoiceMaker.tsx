@@ -8,6 +8,7 @@ interface ItemRow {
   description: string;
   qty: number;
   amountIdr: number;
+  material: string;
 }
 
 const CUSTOMER_CODES: Record<string, string> = {
@@ -31,7 +32,37 @@ const CUSTOMER_CODES: Record<string, string> = {
   "PT. BEC": "110",
 };
 
-const AVAILABLE_PROCESSES = ["Milling", "Turning", "Grinding", "CNC", "EDM", "Wire Cut", "Hardening", "Plating", "Polish"];
+const AVAILABLE_PROCESSES = [
+  "Milling",
+  "Turning",
+  "Grinding",
+  "CNC",
+  "EDM",
+  "Wire Cut",
+  "Hardening",
+  "Plating",
+  "Polish",
+];
+const AVAILABLE_MATERIAL = [
+  "SKD 11/XW 41",
+  "SKD 11/XW 41 (JAPAN)",
+  "SKD 61",
+  "DF2",
+  "STAVAX",
+  "NAK 80",
+  "440C",
+  "AISI 4140",
+  "S50C / S45C",
+  "ALUMINIUM",
+  "BRASS",
+  "COPPER",
+  "ORANGE BAKELITE",
+  "BLACK BAKELITE",
+  "WHITE DERLIN",
+  "BLACK DERLIN",
+  "STAINLESS STEEL",
+  "TEFLON",
+];
 
 export default function InvoiceForm() {
   const [isPending, startTransition] = useTransition();
@@ -48,7 +79,7 @@ export default function InvoiceForm() {
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
   const [items, setItems] = useState<ItemRow[]>([
-    { id: Date.now(), description: "", qty: 1, amountIdr: 0, processes: [] },
+    { id: Date.now(), description: "", qty: 1, amountIdr: 0, processes: [], material: "" },
   ]);
 
 const handleToggleProcess = (itemId: number, processName: string) => {
@@ -429,114 +460,160 @@ const handleToggleProcess = (itemId: number, processName: string) => {
           </button>
         </div>
         <div className="space-y-4">
-  {items.map((item, index) => (
-    <div
-      key={item.id}
-      className="bg-macos-base/30 p-5 border border-macos-separator/40 rounded-xl space-y-4 animate-scale-up"
-    >
-      {/* 🌟 BARIS ATAS: BLOK MASUKAN DATA UTAMA (Menggunakan CSS Grid agar Responsif) */}
-      <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
-        {/* Kolom Deskripsi Barang */}
-        <div className="sm:col-span-6 w-full">
-          <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-            Item Description #{index + 1} *
-          </label>
-          <input
-            type="text"
-            required
-            value={item.description}
-            disabled={isPending}
-            onChange={(e) => updateItemField(item.id, "description", e.target.value)}
-            placeholder="e.g. EJECTOR FLANGE MATERIAL : MILD STEEL"
-            className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
-          />
-        </div>
-
-        {/* Kolom Jumlah Qty */}
-        <div className="sm:col-span-2 w-full">
-          <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-            Qty *
-          </label>
-          <input
-            type="number"
-            min="1"
-            required
-            value={item.qty}
-            disabled={isPending}
-            onChange={(e) => updateItemField(item.id, "qty", parseInt(e.target.value, 10) || 1)}
-            className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition text-center font-semibold"
-          />
-        </div>
-
-        {/* Kolom Harga Nominal */}
-        <div className="sm:col-span-3 w-full">
-          <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-            Amount IDR *
-          </label>
-          <input
-            type="number"
-            step="any"
-            required
-            value={item.amountIdr || ""}
-            disabled={isPending}
-            onChange={(e) => updateItemField(item.id, "amountIdr", parseFloat(e.target.value) || 0)}
-            placeholder="3963900"
-            className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition font-mono"
-          />
-        </div>
-
-        {/* Tombol Hapus Baris Item Tunggal */}
-        <div className="sm:col-span-1 w-full flex justify-end">
-          {items.length > 1 ? (
-            <button
-              type="button"
-              disabled={isPending}
-              onClick={() => removeItemRow(item.id)}
-              className="w-full py-2 border border-macos-red/20 text-macos-red bg-macos-red/5 rounded-md text-xs hover:bg-macos-red hover:text-white transition cursor-pointer flex items-center justify-center font-bold"
-              title="Hapus baris item ini"
+          {items.map((item, index) => (
+            <div
+              key={item.id}
+              className="bg-macos-base/30 p-5 border border-macos-separator/40 rounded-xl space-y-4 animate-scale-up"
             >
-              ✕
-            </button>
-          ) : (
-            // Dummy space penyeimbang grid jika item tinggal satu-satunya
-            <div className="w-9 h-9" />
-          )}
-        </div>
-      </div>
+              {/* 🌟 BARIS ATAS: BLOK MASUKAN DATA UTAMA (Menggunakan CSS Grid agar Responsif) */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+                {/* Kolom Deskripsi Barang */}
+                <div className="sm:col-span-6 w-full">
+                  <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                    Item Description #{index + 1} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={item.description}
+                    disabled={isPending}
+                    onChange={(e) =>
+                      updateItemField(item.id, "description", e.target.value)
+                    }
+                    placeholder="e.g. EJECTOR FLANGE MATERIAL : MILD STEEL"
+                    className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
+                  />
+                </div>
 
-      {/* 🌟 BARIS BAWAH: BLOK CHECKBOX PROSES MANUFAKTUR (Berdiri Mandiri Secara Horizontal Penuh) */}
-      <div className="border-t border-macos-separator/30 pt-3.5">
-        <span className="block text-[11px] font-bold text-macos-secondary mb-2.5 uppercase tracking-wider">
-          Required Machining Processes :
-        </span>
-        <div className="flex flex-wrap gap-x-6 gap-y-2.5">
-          {AVAILABLE_PROCESSES.map((process) => {
-            // Pengaman runtime jaminan lolos dari crash hampa undefined
-            const isChecked = item.processes ? item.processes.includes(process) : false;
-            return (
-              <label
-                key={process}
-                className="flex items-center gap-2 text-xs font-medium text-macos-primary cursor-pointer select-none group"
-              >
-                <input
-                  type="checkbox"
-                  disabled={isPending}
-                  checked={isChecked}
-                  onChange={() => handleToggleProcess(item.id, process)}
-                  className="w-3.5 h-3.5 rounded border border-macos-separator bg-macos-tertiary text-macos-blue focus:ring-0 transition accent-macos-blue cursor-pointer"
-                />
-                <span
-                  className={`group-hover:text-white transition ${
-                    isChecked ? "text-macos-blue font-bold" : "text-macos-secondary"
-                  }`}
-                >
-                  {process}
+                <div className="sm:col-span-3 w-full">
+                  <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                    Material Tipe *
+                  </label>
+                  <select
+                    required
+                    value={item.material || ""}
+                    disabled={isPending}
+                    onChange={(e) =>
+                      updateItemField(item.id, "material", e.target.value)
+                    }
+                    className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition cursor-pointer"
+                  >
+                    <option value="" disabled>
+                      -- Pilih Material --
+                    </option>
+                    {AVAILABLE_MATERIAL.map((mat) => (
+                      <option
+                        key={mat}
+                        value={mat}
+                        className="bg-macos-popover text-macos-primary font-medium"
+                      >
+                        {mat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Kolom Jumlah Qty */}
+                <div className="sm:col-span-1 w-full">
+                  <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                    Qty *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={item.qty}
+                    disabled={isPending}
+                    onChange={(e) =>
+                      updateItemField(
+                        item.id,
+                        "qty",
+                        parseInt(e.target.value, 10) || 1,
+                      )
+                    }
+                    className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition text-center font-semibold"
+                  />
+                </div>
+
+                {/* Kolom Harga Nominal */}
+                <div className="sm:col-span-3 w-full">
+                  <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                    Amount IDR *
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={item.amountIdr || ""}
+                    disabled={isPending}
+                    onChange={(e) =>
+                      updateItemField(
+                        item.id,
+                        "amountIdr",
+                        parseFloat(e.target.value) || 0,
+                      )
+                    }
+                    placeholder="3963900"
+                    className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition font-mono"
+                  />
+                </div>
+
+                {/* Tombol Hapus Baris Item Tunggal */}
+                <div className="sm:col-span-1 w-full flex justify-end">
+                  {items.length > 1 ? (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => removeItemRow(item.id)}
+                      className="w-full py-2 border border-macos-red/20 text-macos-red bg-macos-red/5 rounded-md text-xs hover:bg-macos-red hover:text-white transition cursor-pointer flex items-center justify-center font-bold"
+                      title="Hapus baris item ini"
+                    >
+                      ✕
+                    </button>
+                  ) : (
+                    // Dummy space penyeimbang grid jika item tinggal satu-satunya
+                    <div className="w-9 h-9" />
+                  )}
+                </div>
+              </div>
+
+              {/* 🌟 BARIS BAWAH: BLOK CHECKBOX PROSES MANUFAKTUR (Berdiri Mandiri Secara Horizontal Penuh) */}
+              <div className="border-t border-macos-separator/30 pt-3.5">
+                <span className="block text-[11px] font-bold text-macos-secondary mb-2.5 uppercase tracking-wider">
+                  Required Machining Processes :
                 </span>
-              </label>
-            );
-          })}
-        </div>
-      </div>
+                <div className="flex flex-wrap gap-x-6 gap-y-2.5">
+                  {AVAILABLE_PROCESSES.map((process) => {
+                    // Pengaman runtime jaminan lolos dari crash hampa undefined
+                    const isChecked = item.processes
+                      ? item.processes.includes(process)
+                      : false;
+                    return (
+                      <label
+                        key={process}
+                        className="flex items-center gap-2 text-xs font-medium text-macos-primary cursor-pointer select-none group"
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={isPending}
+                          checked={isChecked}
+                          onChange={() => handleToggleProcess(item.id, process)}
+                          className="w-3.5 h-3.5 rounded border border-macos-separator bg-macos-tertiary text-macos-blue focus:ring-0 transition accent-macos-blue cursor-pointer"
+                        />
+                        <span
+                          className={`group-hover:text-white transition ${
+                            isChecked
+                              ? "text-macos-blue font-bold"
+                              : "text-macos-secondary"
+                          }`}
+                        >
+                          {process}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
 
               {items.length > 1 && (
                 <button
