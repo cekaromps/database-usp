@@ -243,6 +243,7 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
         amountIdr: item.amountIdr,
         remark: remark,
         processes: processString,
+        address: detectedAddress
       }
     })
 
