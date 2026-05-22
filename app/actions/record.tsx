@@ -8,22 +8,32 @@ export async function uploadExcelAction(formData: FormData) {
   const file = formData.get("excelFile") as File
   
   if (!file || file.size === 0) {
-    return "No file uploaded"
+    return { success: false, message: "No file uploaded", inserted: 0, skipped: [] }
   }
 
   try {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
     
-    // cellDates: true menjamin pengenalan format waktu secara langsung dari Excel
     const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true })
-    const firstSheetName = workbook.SheetNames
+    
+    const firstSheetName = workbook.SheetNames && workbook.SheetNames.length > 0 
+      ? workbook.SheetNames[0] 
+      : null
+
+    if (!firstSheetName) {
+      return { success: false, message: "Gagal mendeteksi nama Sheet di dalam file Excel.", inserted: 0, skipped: [] }
+    }
+
     const worksheet = workbook.Sheets[firstSheetName]
     
-    const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" }) as any[]
+    // 🌟 REVOLUSI UTAMA: Paksa membaca Excel menjadi Array murni (header: 1)
+    // Cara ini membuat data dibaca sebagai susunan koordinat: row[0] = Kolom A, row[1] = Kolom B, dst.
+    // 100% kebal dari kesalahan ejaan nama header atau baris judul perusahaan yang merusak format!
+    const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" }) as any[][]
 
     if (rawRows.length === 0) {
-      return "The uploaded Excel sheet is empty"
+      return { success: false, message: "Berkas Excel yang diunggah terbaca hampa atau kosong.", inserted: 0, skipped: [] }
     }
 
     let currentCustomer = ""
@@ -34,72 +44,155 @@ export async function uploadExcelAction(formData: FormData) {
     let currentNoInv = ""
 
     const recordsToInsert = []
+    const skippedRowsReport: Array<{ rowNumber: number; customer: string; desc: string; reason: string }> = []
 
-    for (const row of rawRows) {
-      // Logika Forward Fill: Duplikasi otomatis sel gabungan (merged cells)
-      if (row["Customer"]) currentCustomer = String(row["Customer"]).trim()
-      if (row["Quotation No"]) currentQuotation = String(row["Quotation No"]).trim()
-      if (row["No. PO"]) currentNoPo = String(row["No. PO"]).trim()
-      if (row["No. DO"]) currentNoDo = String(row["No. DO"]).trim()
-      if (row["No. Invoice"]) currentNoInv = String(row["No. Invoice"]).trim()
+    // Mulai membaca dari baris ke-2 (Indeks 1) untuk melewati baris header nama kolom di Excel
+    for (let i = 1; i < rawRows.length; i++) {
+      const row = rawRows[i]
+      const excelRowNumber = i + 1 // Baris riil di aplikasi Excel Anda
+
+      // Jika baris hampa atau kurang dari 2 kolom, lewati saja
+      if (!row || row.length < 2) continue;
+
+      // 🌟 PEMETAAN POSISI KOLOM MURNI BERDASARKAN INDEKS MATRIKS SPREADSHEET (ANTI-MISMATCH):
+      // row[0] = Kolom A (Customer)
+      // row[1] = Kolom B (Description of Goods)
+      // row[2] = Kolom C (Quotation No)
+      // row[3] = Kolom D (No. PO)
+      // row[4] = Kolom E (Delivery Date)
+      // row[5] = Kolom F (No. DO)
+      // row[6] = Kolom G (No. Invoice)
+      // row[7] = Kolom H (Amount IDR)
+      // row[8] = Kolom I (Remark)
       
-      if (row["Delivery Date"]) {
-        const rawDate = row["Delivery Date"]
-        if (rawDate instanceof Date) {
-          currentDeliveryDate = rawDate
+      const excelCustomer = row[0]
+      const excelDesc = row[1]
+      const excelQuotation = row[2]
+      const excelNoPo = row[3]
+      const excelDate = row[4]
+      const excelNoDo = row[5]
+      const excelNoInv = row[6]
+      const excelAmount = row[7]
+      const excelRemark = row[8]
+
+      // Logika Forward Fill untuk Merged Cells (Mengunci sisa baris kosong di bawahnya)
+      if (excelCustomer && String(excelCustomer).trim() !== "") currentCustomer = String(excelCustomer).trim()
+      if (excelQuotation && String(excelQuotation).trim() !== "") currentQuotation = String(excelQuotation).trim()
+      if (excelNoPo && String(excelNoPo).trim() !== "") currentNoPo = String(excelNoPo).trim()
+      if (excelNoDo && String(excelNoDo).trim() !== "") currentNoDo = String(excelNoDo).trim()
+      if (excelNoInv && String(excelNoInv).trim() !== "") currentNoInv = String(excelNoInv).trim()
+      
+      if (excelDate && String(excelDate).trim() !== "") {
+        if (excelDate instanceof Date) {
+          currentDeliveryDate = excelDate
         } else {
-          const parsed = Date.parse(String(rawDate))
-          if (!isNaN(parsed)) {
-            currentDeliveryDate = new Date(parsed)
-          }
+          const parsed = Date.parse(String(excelDate))
+          if (!isNaN(parsed)) currentDeliveryDate = new Date(parsed)
         }
       }
 
-      // Bersihkan teks "Rp" atau titik ribuan pada nominal angka
-      let rawAmount = String(row["Amount IDR"] || "0")
+      // Bersihkan teks mata uang rupiah
+      let rawAmount = String(excelAmount || "0")
       rawAmount = rawAmount.replace(/Rp/g, "").replace(/\./g, "").replace(/,/g, "").trim()
       const parsedAmount = parseFloat(rawAmount) || 0
+      const cleanDesc = String(excelDesc || "").trim()
 
-      if (!row["Description"] && parsedAmount === 0) {
+      // DETEKSI FILTER PENYARINGAN BARIS
+      
+      // Kasus A: Baris hampa kosong murni di Excel
+      if (cleanDesc === "" && parsedAmount === 0 && !excelCustomer) {
+        continue 
+      }
+
+      // Kasus B: Baris total ringkasan bawah Excel
+      if (cleanDesc.toLowerCase().includes("total") || cleanDesc === "GRAND TOTAL" || cleanDesc.toLowerCase().includes("jumlah")) {
+        skippedRowsReport.push({
+          rowNumber: excelRowNumber,
+          customer: currentCustomer || "-",
+          desc: cleanDesc,
+          reason: "Baris Ringkasan Total (Summary Line) dilewati otomatis"
+        })
         continue
       }
 
-      const remarkValue = row["Remark"] && String(row["Remark"]).trim() !== "" 
-        ? String(row["Remark"]).trim() 
-        : "-"
+      // Kasus C: Baris data rusak / Parameter Utama Hilang (Pemicu Error Prisma)
+      if (!currentCustomer || currentCustomer === "UNKNOWN" || !currentNoInv) {
+        skippedRowsReport.push({
+          rowNumber: excelRowNumber,
+          customer: currentCustomer || "Kosong",
+          desc: cleanDesc || "Tanpa Deskripsi",
+          reason: "Kolom Customer Name atau Nomor Invoice hampa/tidak terdeteksi"
+        })
+        continue
+      }
+
+      if (!currentCustomer || currentCustomer === "UNKNOWN" || !currentNoInv) {
+        skippedRowsReport.push({
+          rowNumber: excelRowNumber,
+          customer: currentCustomer || "Kosong",
+          desc: cleanDesc || "Tanpa Deskripsi",
+          reason: "Kolom Customer Name atau Nomor Invoice hampa/tidak terdeteksi"
+        })
+        continue
+      }
+
+      // 🌟 🆕 SEKSI BARU: DUPLICATE CHECK ANTI-GAGAL BERBASIS DATABASE REAL-TIME
+      // Memeriksa apakah baris item ini sudah pernah sukses terunggah sebelumnya
+      const isDuplicateInDB = await prisma.invoiceRecord.findFirst({
+        where: {
+          noInv: currentNoInv,
+          noPo: currentNoPo,
+          description: cleanDesc
+        }
+      })
+
+      if (isDuplicateInDB) {
+        skippedRowsReport.push({
+          rowNumber: excelRowNumber,
+          customer: currentCustomer,
+          desc: cleanDesc,
+          reason: "Data sudah pernah di-upload sebelumnya (Terdeteksi Duplikat)"
+        })
+        continue // 🚀 Langsung lewati (skip) baris ini agar tidak ganda di database!
+      }
 
       recordsToInsert.push({
-        customer: currentCustomer || "UNKNOWN",
-        description: String(row["Description"] || "-").trim(),
+        customer: currentCustomer,
+        description: cleanDesc || "-",
         quotationNumber: currentQuotation || "-",
         noPo: currentNoPo || "-",
         dateDelivery: currentDeliveryDate || new Date(),
         noDo: currentNoDo || "-",
         noInv: currentNoInv || "-",
         amountIdr: parsedAmount,
-        remark: remarkValue, 
+        remark: excelRemark && String(excelRemark).trim() !== "" ? String(excelRemark).trim() : "-",
       })
     }
 
     if (recordsToInsert.length === 0) {
-      return "No valid rows found to import"
+      return { success: false, message: "Tidak ada baris data valid yang bisa diimport. Pastikan urutan Kolom A sampai I sesuai format.", inserted: 0, skipped: skippedRowsReport }
     }
 
+    // Jalankan transaksi masal murni ke database
     await prisma.$transaction(
       recordsToInsert.map((item) =>
         prisma.invoiceRecord.create({
-          data: item,
+          data: item as any,
         })
       )
     )
 
     revalidatePath("/dashboard/datapodo")
-    return null 
+    return { success: true, message: "Bulk import Excel berhasil!", inserted: recordsToInsert.length, skipped: skippedRowsReport }
+
   } catch (error) {
     console.error("Excel Parsing Error:", error)
-    return "Failed to parse or save your Excel data rows"
+    return { success: false, message: "Gagal memproses berkas Excel karena error internal database.", inserted: 0, skipped: [] }
   }
 }
+
+
+
 
 
 export async function createRecordAction(formData: FormData) {
