@@ -46,6 +46,7 @@ model Invoice {
   qty             Int      @default(1)
   amountIdr       Float
   remark          String   @default("Prices are valid 1 month after offer is sent")
+  processes       String   @default("-")
   address         String
   createdAt       DateTime @default(now())
 }

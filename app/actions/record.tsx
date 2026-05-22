@@ -201,7 +201,7 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
   const itemsJson = formData.get("itemsJson") as string
   if (!itemsJson) return "No items added"
 
-  const items = JSON.parse(itemsJson) as Array<{ description: string; qty: number; amountIdr: number }>
+  const items = JSON.parse(itemsJson) as Array<{ description: string; qty: number; amountIdr: number; processes: string[] }>
 
   // Validasi kolom-kolom wajib baru
   if (!customer || !attn || !term || !validity || !leadTime || !fromUser || !handphone || !quotationNumber || !dateDeliveryStr || !noInv || items.length === 0) {
@@ -219,26 +219,33 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
     }
   }
 
-  try {
-    const recordsToInsert = items.map((item) => ({
-      customer,
-      // 🌟 SESUAIKAN: Ubah kunci di bawah ini menjadi 'address' atau 'customerAddress' sesuai field asli di schema.prisma Anda
-      address: detectedAddress, 
-      attn,
-      cc,
-      term,
-      validity,
-      leadTime,
-      fromUser,
-      handphone,
-      quotationNumber,
-      dateDelivery: new Date(dateDeliveryStr),
-      noInv,
-      description: item.description || "-",
-      qty: item.qty || 1,
-      amountIdr: item.amountIdr,
-      remark: remark,
-    }))
+    try {
+    const recordsToInsert = items.map((item) => {
+      // Gabungkan array proses kerja menjadi satu teks teks string dipisah koma (cth: "Grinding, Milling")
+      const processString = item.processes && item.processes.length > 0 
+        ? item.processes.join(", ") 
+        : "-"
+
+      return {
+        customer,
+        attn,
+        cc,
+        term,
+        validity,
+        leadTime,
+        fromUser,
+        handphone,
+        quotationNumber,
+        dateDelivery: new Date(dateDeliveryStr),
+        noInv,
+        description: item.description || "-",
+        qty: item.qty || 1,
+        amountIdr: item.amountIdr,
+        remark: remark,
+        processes: processString,
+      }
+    })
+
 
     await prisma.$transaction(
       recordsToInsert.map((record) =>
