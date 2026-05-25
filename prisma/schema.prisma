@@ -51,3 +51,31 @@ model Invoice {
   address         String
   createdAt       DateTime @default(now())
 }
+
+enum ItemType {
+  FOLDER
+  FILE
+}
+
+model Item {
+  id        String   @id @default(uuid())
+  name      String   
+  type      ItemType 
+  
+  // S3 Specific (Only for FILE type)
+  s3Key     String?  
+  url       String?  
+  size      Int?     
+  contentData Json?
+
+  // Self-referencing relationship for Folder Structure
+  parentId  String?
+  parent    Item?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Item[]   @relation("FolderHierarchy")
+
+  // Ownership & Security
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+}
