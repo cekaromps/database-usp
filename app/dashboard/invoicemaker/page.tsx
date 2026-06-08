@@ -25,7 +25,7 @@ export default async function InvoiceMaker() {
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Invoice Maker</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Quotation Maker</h1>
             <p className="text-sm text-macos-secondary mt-0.5">
               Logged in as: <span className="font-semibold text-macos-primary">{String(session?.username)}</span>
             </p>

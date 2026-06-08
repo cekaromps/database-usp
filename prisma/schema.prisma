@@ -50,6 +50,7 @@ model Invoice {
   material        String   @default("-")
   address         String
   createdAt       DateTime @default(now())
+  discount        Float    @default(0)
 }
 
 enum ItemType {
@@ -78,4 +79,57 @@ model Item {
   updatedAt DateTime @updatedAt
 
   @@index([parentId])
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum EntryStatus {
+  DRAFT
+  POSTED
+  VOIDED
+}
+
+model ChartOfAccount {
+  id          String @id @default(uuid())
+  code        String @unique
+  name        String
+  type        AccountType
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  journalLines JournalLine[]
+}
+
+model JournalEntry {
+  id          String        @id @default(uuid())
+  date        DateTime      
+  reference   String?       
+  description String        
+  status      EntryStatus   @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  lines       JournalLine[]
+}
+
+model JournalLine {
+  id             String         @id @default(uuid())
+  
+  journalEntryId String
+  journalEntry   JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  
+  accountId      String
+  account        ChartOfAccount @relation(fields: [accountId], references: [id])
+  
+  debit          Decimal        @default(0.00) @db.Decimal(15, 2)
+  credit         Decimal        @default(0.00) @db.Decimal(15, 2)
+  
+  createdAt      DateTime       @default(now())
 }

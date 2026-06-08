@@ -285,6 +285,7 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
   const quotationNumber = formData.get("quotationNumber") as string
   const dateDeliveryStr = formData.get("dateDelivery") as string
   const noInv = formData.get("noInv") as string
+  const discount = parseFloat(formData.get("discount") as string) || 0;
   
   const rawRemark = formData.get("remark") as string
   const remark = rawRemark && rawRemark.trim() !== "" ? rawRemark.trim() : "Prices are valid 1 month after offer is sent"
@@ -336,6 +337,7 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
         processes: processString,
         address: detectedAddress,
         material: item.material || "-",
+        discount: discount,
       }
     })
 

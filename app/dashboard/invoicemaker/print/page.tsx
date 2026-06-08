@@ -42,6 +42,10 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
   // Hitung perkalian matematis Grand Total dari seluruh Qty × Unit Price
   const totalAmount = invoiceItems.reduce((sum, item) => sum + (item.amountIdr * item.qty), 0)
 
+  const discount = mainData.discount ?? 0;
+  const discountAmount = totalAmount * (discount / 100);
+  const grandTotal = totalAmount - discountAmount;
+
   const formatIDR = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       minimumFractionDigits: 2,
@@ -251,7 +255,17 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
           <tbody>
             <tr>
               <td>QUOTATION NO : <span className="font-mono">{mainData.quotationNumber}</span></td>
-              <td>DATE : {new Date(mainData.dateDelivery).toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, "-")}</td>
+              <td>
+                DATE : {(() => {
+                  const deliveryDate = new Date(mainData.dateDelivery);
+                  deliveryDate.setDate(deliveryDate.getDate() + 1);
+                  return deliveryDate.toLocaleDateString("id-ID", {
+                    day: '2-digit',
+                    month: 'short',
+                    year: '2-digit'
+                  }).replace(/ /g, "-");
+                })()}
+              </td>
               <td>PAGE : 1 / 1</td>
             </tr>
           </tbody>
@@ -310,11 +324,35 @@ export default async function PrintInvoicePage({ searchParams }: PrintPageProps)
                 <td></td>
               </tr>
 
+              {/* SUBTOTAL ROW */}
+              <tr className="border-t border-neutral-300 text-[11px]">
+                <td colSpan={4} className="p-2 text-right text-neutral-500 border-r border-black">
+                  Subtotal :
+                </td>
+                <td colSpan={2} className="p-2 text-right font-mono text-neutral-600">
+                  IDR &nbsp;&nbsp;{formatIDR(totalAmount)}
+                </td>
+              </tr>
+
+              {/* DISCOUNT ROW — only show if discount > 0 */}
+              {discount > 0 && (
+                <tr className="text-[11px]">
+                  <td colSpan={4} className="p-2 text-right text-red-600 border-r border-black">
+                    Discount ({discount}%) :
+                  </td>
+                  <td colSpan={2} className="p-2 text-right font-mono text-red-600">
+                    - IDR &nbsp;&nbsp;{formatIDR(discountAmount)}
+                  </td>
+                </tr>
+              )}
+
               {/* GRAND TOTAL ROW */}
               <tr className="border-t-2 border-black font-black bg-neutral-50 text-[12px]">
-                <td colSpan={4} className="p-3 text-right uppercase tracking-wider border-r border-black">Total Amount :</td>
+                <td colSpan={4} className="p-3 text-right uppercase tracking-wider border-r border-black">
+                  Grand Total :
+                </td>
                 <td colSpan={2} className="p-3 text-right text-neutral-950 font-mono font-black text-md">
-                  IDR &nbsp;&nbsp;{formatIDR(totalAmount)}
+                  IDR &nbsp;&nbsp;{formatIDR(grandTotal)}
                 </td>
               </tr>
             </tbody>

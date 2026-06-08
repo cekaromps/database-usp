@@ -193,7 +193,11 @@ export default async function InvoiceListPage({ searchParams }: PageProps) {
                   <td className="p-3.5 text-macos-secondary font-mono text-xs">{invoice.quotationNumber}</td>
                   <td className="p-3.5 text-macos-secondary">{invoice.attn}</td>
                   <td className="p-3.5 text-macos-secondary">
-                    {new Date(invoice.dateDelivery).toLocaleDateString("id-ID")}
+                    {(() => {
+                      const nextDay = new Date(invoice.dateDelivery);
+                      nextDay.setDate(nextDay.getDate() + 1); // Tambah 1 hari
+                      return nextDay.toLocaleDateString("id-ID");
+                    })()}
                   </td>
                   <td className="p-3.5 text-center">
                     <span className="px-2 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-xs rounded border border-neutral-300 font-medium text-macos-secondary">

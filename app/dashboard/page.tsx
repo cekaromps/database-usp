@@ -65,7 +65,7 @@ export default async function DashboardPage() {
                 Data PO & DO
               </h4>
               <p className="text-xs text-macos-secondary mt-1 leading-relaxed">
-                Pelacakan pesanan, input nota DO/Invoice, import data dari
+                Pelacakan pesanan, input nota DO/invoice , import data dari
                 berkas Excel.
               </p>
             </div>
@@ -85,10 +85,10 @@ export default async function DashboardPage() {
             </div>
             <div>
               <h4 className="text-md font-bold text-macos-primary tracking-tight">
-                Invoice Maker
+                Quotation Maker
               </h4>
               <p className="text-xs text-macos-secondary mt-1 leading-relaxed">
-                Buat invoice, data langsung tersimpan ke database
+                Buat quotation, data langsung tersimpan ke database
               </p>
             </div>
           </Link>
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
             </div>
             <div>
               <h4 className="text-md font-bold text-macos-primary tracking-tight">
-                Invoice Records List
+                Quotation Records List
               </h4>
               <p className="text-xs text-macos-secondary mt-1 leading-relaxed">
                 Lihat histori seluruh quotation multi-item, cari dokumen
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
           </Link>
 
           <Link
-            href="/dashboard/fileman"
+            href="/dashboard/drive"
             className="group flex flex-col justify-between p-6 bg-macos-popover border border-macos-separator rounded-2xl shadow-xl hover:shadow-2xl hover:border-macos-blue/50 active:scale-[0.98] transition-all duration-200 cursor-pointer"
           >
             <div className="flex items-center justify-between mb-4">
@@ -133,6 +133,28 @@ export default async function DashboardPage() {
               </h4>
               <p className="text-xs text-macos-secondary mt-1 leading-relaxed">
                 Database dalam bentuk file
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            href="/dashboard/accounting"
+            className="group flex flex-col justify-between p-6 bg-macos-popover border border-macos-separator rounded-2xl shadow-xl hover:shadow-2xl hover:border-macos-blue/50 active:scale-[0.98] transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 rounded-xl bg-macos-blue flex items-center justify-center text-white text-lg font-bold shadow-md shadow-macos-blue/20">
+                📊
+              </div>
+              <span className="text-xs font-semibold text-macos-blue bg-macos-blue/10 px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                Buka →
+              </span>
+            </div>
+            <div>
+              <h4 className="text-md font-bold text-macos-primary tracking-tight">
+                Accounting
+              </h4>
+              <p className="text-xs text-macos-secondary mt-1 leading-relaxed">
+                Laporan keuangan, neraca, laba rugi, dan analisis keuangan.
               </p>
             </div>
           </Link>

@@ -42,8 +42,11 @@ const AVAILABLE_PROCESSES = [
   "Hardening",
   "Plating",
   "Polish",
+  "Chrome"
 ];
 const AVAILABLE_MATERIAL = [
+  "STD PART",
+  "MILD STEEL",
   "SKD 11/XW 41",
   "SKD 11/XW 41 (JAPAN)",
   "SKD 61",
@@ -72,6 +75,7 @@ export default function InvoiceForm() {
   const [customerName, setCustomerName] = useState("");
   const [quotationNumber, setQuotationNumber] = useState("Q000-2605-001");
   const [customerAddress, setCustomerAddress] = useState("");
+  const [discount, setDiscount] = useState(0);
 
   // State khusus Autocomplete
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -111,7 +115,6 @@ const handleToggleProcess = (itemId: number, processName: string) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 🌟 1. LOGIKA EVENT AMBIL PREFIX TANGGAL (Fungsi Pembantu Lokal)
   const getDatePrefix = () => {
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
@@ -119,14 +122,12 @@ const handleToggleProcess = (itemId: number, processName: string) => {
     return `${yy}${mm}`; // Hasil: "2605"
   };
 
-  // 🌟 2. EVENT SAAT USER MENGETIK MANUAL DI INPUT FIELD
   const handleInputChange = (value: string) => {
     setCustomerName(value);
     setShowSuggestions(true);
 
     const cleanInput = value.toUpperCase().trim();
 
-    // Filter rekomendasi dropdown PT
     if (cleanInput.length > 0) {
       const filtered = Object.keys(CUSTOMER_CODES).filter((name) =>
         name.toUpperCase().includes(cleanInput),
@@ -136,7 +137,6 @@ const handleToggleProcess = (itemId: number, processName: string) => {
       setSuggestions([]);
     }
 
-    // Set format default sementara (Q000-2605-001) sewaktu mengetik setengah jalan
     let companyCode = "000";
     for (const [name, code] of Object.entries(CUSTOMER_CODES)) {
       if (cleanInput === name.toUpperCase()) {
@@ -147,7 +147,6 @@ const handleToggleProcess = (itemId: number, processName: string) => {
     setQuotationNumber(`Q${companyCode}-${getDatePrefix()}-001`);
   };
 
-  // 🌟 3. EVENT SAAT USER KLIK PILIHAN NAMA PT DARI DROPDOWN
   const handleSelectSuggestion = (name: string) => {
     setCustomerName(name);
     setShowSuggestions(false);
@@ -211,8 +210,10 @@ const handleToggleProcess = (itemId: number, processName: string) => {
       return;
     }
 
+
     const formData = new FormData(e.currentTarget);
     formData.append("itemsJson", JSON.stringify(items));
+    formData.append("discount", String(discount))
 
     startTransition(async () => {
       const errorMsg = await createInvoiceWithItemsAction(formData);
@@ -221,6 +222,16 @@ const handleToggleProcess = (itemId: number, processName: string) => {
       }
     });
   };
+
+    const subtotal = items.reduce((sum, item) => sum + item.amountIdr * item.qty, 0);
+    const discountAmount = subtotal * (discount / 100);
+    const grandTotal = subtotal - discountAmount;
+
+    const formatIDR = (val: number) =>
+      new Intl.NumberFormat("id-ID", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(val);
 
   return (
     <form
@@ -430,7 +441,7 @@ const handleToggleProcess = (itemId: number, processName: string) => {
           {/* NO INVOICE */}
           <div className="md:col-span-2">
             <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-              No. Invoice Pelacak Internal *
+              No. Quotation Pelacak Internal *
             </label>
             <input
               name="noInv"
@@ -448,7 +459,7 @@ const handleToggleProcess = (itemId: number, processName: string) => {
       <div className="bg-macos-popover border border-macos-separator p-6 rounded-xl shadow-2xl space-y-4">
         <div className="flex items-center justify-between border-b border-macos-separator pb-2 mb-2">
           <h3 className="text-lg font-semibold text-macos-primary">
-            Invoice Items List
+            Quotation Items List
           </h3>
           <button
             type="button"
@@ -632,6 +643,19 @@ const handleToggleProcess = (itemId: number, processName: string) => {
 
       <div className="bg-macos-popover border border-macos-separator p-6 rounded-xl shadow-2xl space-y-4">
         <div>
+          <label className="block text-xs font-medium text-macos-secondary mb-1.5">Discount</label>
+          <input
+            name="discount"
+            type="number"
+            min="0"
+            max="100"
+            value={discount}
+            disabled={isPending}
+            onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+            placeholder="5..."
+            className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition" />
+        </div>
+        <div>
           <label className="block text-xs font-medium text-macos-secondary mb-1.5">
             Global Remark (Catatan Tambahan)
           </label>
@@ -643,13 +667,27 @@ const handleToggleProcess = (itemId: number, processName: string) => {
             className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
           />
         </div>
+        <div className="bg-macos-base/30 border border-macos-separator/40 rounded-xl p-4 space-y-2 text-sm font-mono">
+          <div className="flex justify-between text-macos-secondary">
+            <span>Subtotal</span>
+            <span>IDR {formatIDR(subtotal)}</span>
+          </div>
+          <div className="flex justify-between text-macos-red">
+            <span>Discount ({discount}%)</span>
+            <span>- IDR {formatIDR(discountAmount)}</span>
+          </div>
+          <div className="flex justify-between text-macos-primary font-bold border-t border-macos-separator pt-2">
+            <span>Grand Total</span>
+            <span>IDR {formatIDR(grandTotal)}</span>
+          </div>
+        </div>
         <div className="pt-2">
           <button
             type="submit"
             disabled={isPending}
             className="w-full py-2.5 bg-macos-blue text-white rounded-md font-semibold text-sm hover:bg-opacity-90 active:scale-[0.99] transition cursor-pointer shadow-lg disabled:opacity-50"
           >
-            {isPending ? "Saving Records..." : "Save Invoice and All Items"}
+            {isPending ? "Saving Records..." : "Save Quotation and All Items"}
           </button>
         </div>
       </div>
