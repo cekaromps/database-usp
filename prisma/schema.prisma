@@ -148,14 +148,54 @@ enum TaskStage {
 }
 
 model PoTask {
-  id           String    @id @default(uuid())
-  poNumber     String    @unique
-  description  String?
-  currentStage TaskStage @default(DRAWING)
-  isCompleted  Boolean   @default(false)
-
+  id                String       @id @default(uuid())
+  poNumber          String       @unique
+  description       String?
+  currentStage      TaskStage    @default(DRAWING)
+  isCompleted       Boolean      @default(false)
   estimatedDelivery DateTime?
+  items             PoTaskItem[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model PoTaskItem {
+  id          String    @id @default(uuid())
+  poTaskId    String
+  poTask      PoTask    @relation(fields: [poTaskId], references: [id], onDelete: Cascade)
+  stage       TaskStage
+  name        String
+  quantity    Float?
+  unit        String?
+  isCompleted Boolean   @default(false)
+  sortOrder   Int       @default(0)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([poTaskId, stage])
+}
+
+model Job {
+  id           String @id @default(cuid())
+
+  jobName      String
+  qty          Decimal @db.Decimal(10, 2)
+  uom          String
+  customer     String
+  date         DateTime
+  poNumber     String
+
+  leadTime     Int?
+  materialStatus String?
+  status       String @default("Pending")
+  doNumber     String?
+  remark       String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([customer])
+  @@index([poNumber])
+
 }
