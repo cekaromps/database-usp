@@ -1,5 +1,21 @@
 import { prisma } from "@/lib/prisma";
 
+export const GET = async (
+  request: Request,
+  { params }: { params: { id: string } },
+) => {
+  try {
+    const items = await prisma.poTaskItem.findMany({
+      where: { poTaskId: params.id },
+      orderBy: { sortOrder: "asc" },
+    });
+
+    return NextResponse.json(items);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+};
+
 export const PATCH = async (
   request: Request,
   { params }: { params: { itemId: string } },
