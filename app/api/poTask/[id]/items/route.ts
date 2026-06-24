@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
 export const GET = async (
   request: Request,
@@ -11,27 +12,6 @@ export const GET = async (
     });
 
     return NextResponse.json(items);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-};
-
-export const PATCH = async (
-  request: Request,
-  { params }: { params: { itemId: string } },
-) => {
-  try {
-    const { isCompleted, notes } = await request.json();
-
-    const updated = await prisma.poTaskItem.update({
-      where: { id: params.itemId },
-      data: {
-        ...(isCompleted !== undefined && { isCompleted }),
-        ...(notes !== undefined && { notes }),
-      },
-    });
-
-    return NextResponse.json(updated);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
