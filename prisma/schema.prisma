@@ -48,9 +48,11 @@ model Invoice {
   remark          String   @default("Prices are valid 1 month after offer is sent")
   processes       String   @default("-")
   material        String   @default("-")
+  materials       String[] @default([])
   address         String
   createdAt       DateTime @default(now())
   discount        Float    @default(0)
+  unit            String   @default("pcs")
 }
 
 enum ItemType {
@@ -59,20 +61,20 @@ enum ItemType {
 }
 
 model Item {
-  id        String   @id @default(uuid())
-  name      String   
-  type      ItemType 
-  
+  id   String   @id @default(uuid())
+  name String
+  type ItemType
+
   // S3 Specific (Only for FILE type)
-  s3Key     String?  
-  url       String?  
-  size      Int?     
+  s3Key       String?
+  url         String?
+  size        Int?
   contentData Json?
 
   // Self-referencing relationship for Folder Structure
-  parentId  String?
-  parent    Item?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children  Item[]   @relation("FolderHierarchy")
+  parentId String?
+  parent   Item?   @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children Item[]  @relation("FolderHierarchy")
 
   // Ownership & Security
   createdAt DateTime @default(now())
@@ -96,40 +98,64 @@ enum EntryStatus {
 }
 
 model ChartOfAccount {
-  id          String @id @default(uuid())
-  code        String @unique
+  id          String      @id @default(uuid())
+  code        String      @unique
   name        String
   type        AccountType
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   journalLines JournalLine[]
 }
 
 model JournalEntry {
   id          String        @id @default(uuid())
-  date        DateTime      
-  reference   String?       
-  description String        
+  date        DateTime
+  reference   String?
+  description String
   status      EntryStatus   @default(DRAFT)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-
+  qty         Int?          @default(0)
+  uom         String?
+  job         String?
   lines       JournalLine[]
 }
 
 model JournalLine {
-  id             String         @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   journalEntryId String
   journalEntry   JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  
+  invoiceNo      String
   accountId      String
   account        ChartOfAccount @relation(fields: [accountId], references: [id])
-  
-  debit          Decimal        @default(0.00) @db.Decimal(15, 2)
-  credit         Decimal        @default(0.00) @db.Decimal(15, 2)
-  
-  createdAt      DateTime       @default(now())
+
+  debit  Decimal @default(0.00) @db.Decimal(15, 2)
+  credit Decimal @default(0.00) @db.Decimal(15, 2)
+
+  createdAt DateTime @default(now())
+}
+
+enum TaskStage {
+  DRAWING
+  MATERIAL
+  TOOLING
+  PRODUCTION
+  SUBCON
+  FINISHED
+}
+
+model PoTask {
+  id           String    @id @default(uuid())
+  poNumber     String    @unique
+  description  String?
+  currentStage TaskStage @default(DRAWING)
+  isCompleted  Boolean   @default(false)
+
+  estimatedDelivery DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
