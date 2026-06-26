@@ -11,19 +11,16 @@ const STAGE_ORDER: TaskStage[] = [
   "FINISHED",
 ];
 
-// advance/route.ts
 export const PATCH = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) => {
   try {
     const { id } = await params;
-
     const task = await prisma.poTask.findUnique({
       where: { id },
       include: { items: true },
     });
-
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
@@ -52,11 +49,9 @@ export const PATCH = async (
       where: { id },
       data: {
         currentStage: nextStage ?? task.currentStage,
-        isCompleted: nextStage === undefined,
       },
       include: { items: { orderBy: { sortOrder: "asc" } } },
     });
-
     return NextResponse.json(updated);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

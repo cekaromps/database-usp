@@ -154,6 +154,7 @@ model PoTask {
   currentStage      TaskStage    @default(DRAWING)
   isCompleted       Boolean      @default(false)
   estimatedDelivery DateTime?
+  doNumber          String?
   items             PoTaskItem[]
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
