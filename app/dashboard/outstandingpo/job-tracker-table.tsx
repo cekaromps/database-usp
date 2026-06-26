@@ -23,6 +23,7 @@ interface PoTask {
   currentStage: string;
   isCompleted: boolean;
   estimatedDelivery: string;
+  doNumber: string | null; // 👈 add
   createdAt: string;
   updatedAt: string;
   isOverdue: boolean;
@@ -89,6 +90,15 @@ export function PoTaskTrackerTable() {
     [itemsByTask, itemsLoading],
   );
 
+  // 👇 merge an updated task (e.g. after DO number submission) back into state
+  const handleTaskUpdated = useCallback((updated: PoTask) => {
+    setTasks((prev) =>
+      prev
+        ? prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t))
+        : prev,
+    );
+  }, []);
+
   if (error) {
     return (
       <div className="p-4 text-sm text-macos-red">
@@ -140,6 +150,7 @@ export function PoTaskTrackerTable() {
             <th className="py-2 pr-3">Stage</th>
             <th className="py-2 pr-3">Status</th>
             <th className="py-2 pr-3">Est. Delivery</th>
+            <th className="py-2 pr-3">DO Number</th>
           </tr>
         </thead>
         <tbody>
@@ -152,6 +163,7 @@ export function PoTaskTrackerTable() {
               items={itemsByTask[task.id]}
               itemsLoading={!!itemsLoading[task.id]}
               itemsError={itemsError[task.id]}
+              onTaskUpdated={handleTaskUpdated}
             />
           ))}
         </tbody>
@@ -167,6 +179,7 @@ function PoTaskRow({
   items,
   itemsLoading,
   itemsError,
+  onTaskUpdated,
 }: {
   task: PoTask;
   expanded: boolean;
@@ -174,7 +187,42 @@ function PoTaskRow({
   items?: PoTaskItem[];
   itemsLoading: boolean;
   itemsError?: string;
+  onTaskUpdated: (updated: PoTask) => void;
 }) {
+  const [doNumberInput, setDoNumberInput] = useState(task.doNumber ?? "");
+  const [submittingDo, setSubmittingDo] = useState(false);
+  const [doError, setDoError] = useState<string | null>(null);
+
+  const isAtFinalStage = task.currentStage === "FINISHED";
+
+  const handleSubmitDoNumber = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation(); // don't trigger row expand/collapse
+      const trimmed = doNumberInput.trim();
+      if (!trimmed) {
+        setDoError("Required");
+        return;
+      }
+      setSubmittingDo(true);
+      setDoError(null);
+      try {
+        const res = await fetch(`/api/poTask/${task.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ doNumber: trimmed }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`);
+        onTaskUpdated(data);
+      } catch (err: any) {
+        setDoError(err.message ?? "Failed to save");
+      } finally {
+        setSubmittingDo(false);
+      }
+    },
+    [doNumberInput, task.id, onTaskUpdated],
+  );
+
   return (
     <>
       <tr
@@ -209,10 +257,40 @@ function PoTaskRow({
         <td className="py-2 pr-3">
           {new Date(task.estimatedDelivery).toLocaleDateString()}
         </td>
+        <td className="py-2 pr-3" onClick={(e) => e.stopPropagation()}>
+          {task.isCompleted ? (
+            <span>{task.doNumber}</span>
+          ) : isAtFinalStage ? (
+            <div className="flex items-center gap-1.5 print:hidden">
+              <input
+                value={doNumberInput}
+                onChange={(e) => setDoNumberInput(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="DO number..."
+                disabled={submittingDo}
+                className="w-28 px-2 py-1 text-sm bg-macos-popover border border-macos-separator rounded-md focus:outline-none focus:border-macos-blue"
+              />
+              <button
+                onClick={handleSubmitDoNumber}
+                disabled={submittingDo}
+                className="px-2 py-1 text-xs font-medium bg-macos-blue text-white rounded-md hover:bg-opacity-80 transition cursor-pointer disabled:opacity-50"
+              >
+                {submittingDo ? "..." : "Finish"}
+              </button>
+            </div>
+          ) : (
+            <span className="text-macos-secondary">-</span>
+          )}
+          {doError && (
+            <p className="text-xs text-macos-red mt-1 print:hidden">
+              {doError}
+            </p>
+          )}
+        </td>
       </tr>
       {expanded && (
         <tr className="print:hidden">
-          <td colSpan={6} className="bg-macos-popover/30 px-6 py-3">
+          <td colSpan={7} className="bg-macos-popover/30 px-6 py-3">
             {itemsLoading && (
               <p className="text-xs text-macos-secondary">Loading items...</p>
             )}
