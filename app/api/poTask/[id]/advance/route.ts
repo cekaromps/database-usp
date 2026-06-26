@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { TaskStage } from "@/lib/generated/prisma/enums";
+import { sendPushToAll } from "@/lib/sendPush";
 
 const STAGE_ORDER: TaskStage[] = [
   "DRAWING",
@@ -52,6 +53,11 @@ export const PATCH = async (
       },
       include: { items: { orderBy: { sortOrder: "asc" } } },
     });
+    await sendPushToAll(
+      `${updated.poNumber} advanced`,
+      `Now in ${updated.currentStage} stage`,
+      { taskId: updated.id },
+    );
     return NextResponse.json(updated);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

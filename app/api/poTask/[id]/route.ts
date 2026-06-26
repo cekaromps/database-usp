@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendPushToAll } from "@/lib/sendPush";
 
 export const PATCH = async (
   request: Request,
@@ -43,6 +44,19 @@ export const PATCH = async (
         isCompleted: shouldComplete ? true : task.isCompleted,
       },
     });
+    if (shouldComplete) {
+      await sendPushToAll(
+        `${updated.poNumber} completed`,
+        `DO Number ${updated.doNumber} - task finished`,
+        { taskId: updated.id },
+      );
+    } else {
+      await sendPushToAll(
+        `${updated.poNumber} updated`,
+        `DO Number set to ${updated.doNumber}`,
+        { taskId: updated.id },
+      );
+    }
 
     return NextResponse.json(updated);
   } catch (error: any) {
