@@ -1,7 +1,5 @@
 "use server"
 
-import { signIn } from "../../lib/auth"
-import { AuthError } from "next-auth"
 import { createSession, deleteSession } from "@/lib/session"
 import {prisma} from "@/lib/prisma"
 import bcrypt from "bcryptjs"
