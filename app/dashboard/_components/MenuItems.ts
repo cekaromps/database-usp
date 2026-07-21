@@ -40,6 +40,12 @@ export const menuItems: MenuItem[] = [
     description: "PO dan yang belum selesai",
   },
   {
+    href: "/dashboard/ecom",
+    icon: "👜",
+    title: "Ecommerce",
+    description: "List item ecommerce",
+  },
+  {
     icon: "👥",
     title: "HR",
     disabled: true,
