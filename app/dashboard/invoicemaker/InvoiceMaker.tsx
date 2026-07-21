@@ -933,9 +933,9 @@ export default function InvoiceForm() {
           <label className="block text-xs font-medium text-macos-secondary mb-1.5">
             Global Remark (Catatan Tambahan)
           </label>
-          <input
+          <textarea
             name="remark"
-            type="text"
+            rows={4}
             disabled={isPending}
             placeholder="Prices are valid 1 month after offer is sent"
             className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
