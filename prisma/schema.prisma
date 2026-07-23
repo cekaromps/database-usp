@@ -194,14 +194,16 @@ enum TaskStage {
 }
 
 model Ecom {
-  id          String   @id @default(cuid())
-  itemName    String
-  qty         Decimal  @db.Decimal(10, 2)
-  description String
-  size        Int?
-  diameter    Int?
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  price     Float
+  size      String
+  diameter  Float?
+  quantity  Int      @default(1)
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
 }
 
