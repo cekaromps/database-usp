@@ -4,9 +4,6 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 
-// Images are stored on local disk under /public/uploads/ecom so they are
-// directly servable at /uploads/ecom/<filename> — same origin as the app,
-// which also works fine for a mobile client hitting the API over the network.
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "ecom");
 
 function ensureUploadDir() {

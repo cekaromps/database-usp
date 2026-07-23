@@ -98,7 +98,8 @@ export function EcomManager() {
     body.append("price", String(price));
     body.append("size", form.size.trim());
     body.append("quantity", String(quantity));
-    if (form.diameter.trim() !== "") body.append("diameter", form.diameter.trim());
+    if (form.diameter.trim() !== "")
+      body.append("diameter", form.diameter.trim());
     if (imageFile) body.append("image", imageFile);
 
     setSubmitting(true);
@@ -146,9 +147,6 @@ export function EcomManager() {
         </h1>
         <p className="text-sm text-macos-secondary mt-0.5">
           Kelola katalog item: harga, ukuran, diameter, quantity, dan foto.
-          Data ini juga tersedia lewat API (
-          <span className="font-mono">GET/POST /api/ecom</span>) untuk
-          integrasi mobile app.
         </p>
       </div>
 
