@@ -46,41 +46,128 @@ model Invoice {
   qty             Int      @default(1)
   amountIdr       Float
   remark          String   @default("Prices are valid 1 month after offer is sent")
-  processes       String   @default("-")
-  material        String   @default("-")
-  materials       String[] @default([])
   address         String
   createdAt       DateTime @default(now())
+  processes       String   @default("-")
+  material        String   @default("-")
   discount        Float    @default(0)
   unit            String   @default("pcs")
+  materials       String[] @default([])
+}
+
+model Item {
+  id          String   @id @default(uuid())
+  name        String
+  type        ItemType
+  s3Key       String?
+  url         String?
+  size        Int?
+  parentId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  contentData Json?
+  parent      Item?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Item[]   @relation("FolderHierarchy")
+
+  @@index([parentId])
+}
+
+model ChartOfAccount {
+  id           String        @id @default(uuid())
+  code         String        @unique
+  name         String
+  type         AccountType
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  journalLines JournalLine[]
+}
+
+model JournalEntry {
+  id          String        @id @default(uuid())
+  date        DateTime
+  reference   String?
+  description String
+  status      EntryStatus   @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  job         String?
+  qty         Int?          @default(0)
+  uom         String?
+  lines       JournalLine[]
+}
+
+model JournalLine {
+  id             String         @id @default(uuid())
+  journalEntryId String
+  accountId      String
+  debit          Decimal        @default(0.00) @db.Decimal(15, 2)
+  credit         Decimal        @default(0.00) @db.Decimal(15, 2)
+  createdAt      DateTime       @default(now())
+  invoiceNo      String
+  account        ChartOfAccount @relation(fields: [accountId], references: [id])
+  journalEntry   JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+}
+
+model PoTask {
+  id                String       @id @default(uuid())
+  poNumber          String       @unique
+  description       String?
+  currentStage      TaskStage    @default(DRAWING)
+  isCompleted       Boolean      @default(false)
+  estimatedDelivery DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  doNumber          String?
+  items             PoTaskItem[]
+}
+
+model PoTaskItem {
+  id          String    @id @default(uuid())
+  poTaskId    String
+  stage       TaskStage
+  name        String
+  quantity    Float?
+  unit        String?
+  isCompleted Boolean   @default(false)
+  sortOrder   Int       @default(0)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  poTask      PoTask    @relation(fields: [poTaskId], references: [id], onDelete: Cascade)
+
+  @@index([poTaskId, stage])
+}
+
+model Job {
+  id             String   @id @default(cuid())
+  jobName        String
+  qty            Decimal  @db.Decimal(10, 2)
+  uom            String
+  customer       String
+  date           DateTime
+  poNumber       String
+  leadTime       Int?
+  materialStatus String?
+  status         String   @default("Pending")
+  remark         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  doNumber       String?
+
+  @@index([customer])
+  @@index([poNumber])
+}
+
+model PushToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  createdAt DateTime @default(now())
 }
 
 enum ItemType {
   FOLDER
   FILE
-}
-
-model Item {
-  id   String   @id @default(uuid())
-  name String
-  type ItemType
-
-  // S3 Specific (Only for FILE type)
-  s3Key       String?
-  url         String?
-  size        Int?
-  contentData Json?
-
-  // Self-referencing relationship for Folder Structure
-  parentId String?
-  parent   Item?   @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children Item[]  @relation("FolderHierarchy")
-
-  // Ownership & Security
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([parentId])
 }
 
 enum AccountType {
@@ -97,47 +184,6 @@ enum EntryStatus {
   VOIDED
 }
 
-model ChartOfAccount {
-  id          String      @id @default(uuid())
-  code        String      @unique
-  name        String
-  type        AccountType
-  description String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  journalLines JournalLine[]
-}
-
-model JournalEntry {
-  id          String        @id @default(uuid())
-  date        DateTime
-  reference   String?
-  description String
-  status      EntryStatus   @default(DRAFT)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  qty         Int?          @default(0)
-  uom         String?
-  job         String?
-  lines       JournalLine[]
-}
-
-model JournalLine {
-  id String @id @default(uuid())
-
-  journalEntryId String
-  journalEntry   JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  invoiceNo      String
-  accountId      String
-  account        ChartOfAccount @relation(fields: [accountId], references: [id])
-
-  debit  Decimal @default(0.00) @db.Decimal(15, 2)
-  credit Decimal @default(0.00) @db.Decimal(15, 2)
-
-  createdAt DateTime @default(now())
-}
-
 enum TaskStage {
   DRAWING
   MATERIAL
@@ -147,76 +193,15 @@ enum TaskStage {
   FINISHED
 }
 
-model PoTask {
-  id                String       @id @default(uuid())
-  poNumber          String       @unique
-  description       String?
-  currentStage      TaskStage    @default(DRAWING)
-  isCompleted       Boolean      @default(false)
-  estimatedDelivery DateTime?
-  doNumber          String?
-  items             PoTaskItem[]
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-}
-
-model PoTaskItem {
-  id          String    @id @default(uuid())
-  poTaskId    String
-  poTask      PoTask    @relation(fields: [poTaskId], references: [id], onDelete: Cascade)
-  stage       TaskStage
-  name        String
-  quantity    Float?
-  unit        String?
-  isCompleted Boolean   @default(false)
-  sortOrder   Int       @default(0)
-  notes       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([poTaskId, stage])
-}
-
-model Job {
-  id           String @id @default(cuid())
-
-  jobName      String
-  qty          Decimal @db.Decimal(10, 2)
-  uom          String
-  customer     String
-  date         DateTime
-  poNumber     String
-
-  leadTime     Int?
-  materialStatus String?
-  status       String @default("Pending")
-  doNumber     String?
-  remark       String?
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@index([customer])
-  @@index([poNumber])
-
-}
-
 model Ecom {
-  id           String @id @default(cuid())
-
-  itemName     String
-  qty          Decimal @db.Decimal(10, 2)
-  description  String
-  size         Int?
-  diameter     Int?
-  imageUrl     String
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  itemName    String
+  qty         Decimal  @db.Decimal(10, 2)
+  description String
+  size        Int?
+  diameter    Int?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-model PushToken {
-  id           String   @id @default(uuid())
-  token        String   @unique
-  createdAt    DateTime @default(now())
-}

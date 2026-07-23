@@ -1,0 +1,2 @@
+ALTER TABLE "PoTask"
+ADD COLUMN "doNumber" TEXT;
