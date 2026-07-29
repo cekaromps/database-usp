@@ -5,7 +5,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 
-const UPLOAD_DIR = path.join(process.cwd(), "uploads", "ecom");
+const UPLOAD_DIR = path.join(process.cwd(), "..", "uploads", "ecom");
 
 function ensureUploadDir() {
   if (!fs.existsSync(UPLOAD_DIR)) {
