@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
-
 export async function GET(
   req: NextRequest,
   {
@@ -11,7 +10,7 @@ export async function GET(
   },
 ) {
   const { filename } = await params;
-  const filePath = path.join(process.cwd(), "..", "uploads", "ecom", filename);
+  const filePath = path.join(process.cwd(), "uploads", "ecom", filename);
 
   try {
     const file = await fs.readFile(filePath);
