@@ -23,5 +23,5 @@ export default proxy((req) => {
 
 // CRITICAL: Update matcher to explicitly ignore API routes and static chunks
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|uploads).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|uploads/).*)"],
 };
