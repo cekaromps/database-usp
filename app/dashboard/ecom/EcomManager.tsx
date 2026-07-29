@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { ECOM_CATEGORIES, getCategoryLabel, getSubOptions } from "@/lib/ecomCategories";
 
 interface EcomItem {
   id: string;
@@ -10,6 +11,8 @@ interface EcomItem {
   diameter: number | null;
   quantity: number;
   imageUrl: string | null;
+  category: string | null;
+  subCategory: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -20,6 +23,8 @@ const emptyForm = {
   size: "",
   diameter: "",
   quantity: "1",
+  category: "",
+  subCategory: "",
 };
 
 export function EcomManager() {
@@ -52,6 +57,10 @@ export function EcomManager() {
 
   const handleFieldChange = (field: keyof typeof emptyForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setForm((prev) => ({ ...prev, category: value, subCategory: "" }));
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,6 +109,8 @@ export function EcomManager() {
     body.append("quantity", String(quantity));
     if (form.diameter.trim() !== "")
       body.append("diameter", form.diameter.trim());
+    if (form.category) body.append("category", form.category);
+    if (form.category && form.subCategory) body.append("subCategory", form.subCategory);
     if (imageFile) body.append("image", imageFile);
 
     setSubmitting(true);
@@ -246,6 +257,46 @@ export function EcomManager() {
 
           <div>
             <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+              Category
+            </label>
+            <select
+              disabled={submitting}
+              value={form.category}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
+            >
+              <option value="">— Pilih Category —</option>
+              {ECOM_CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+              Sub-Category
+            </label>
+            <select
+              disabled={submitting || !form.category}
+              value={form.subCategory}
+              onChange={(e) => handleFieldChange("subCategory", e.target.value)}
+              className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition disabled:opacity-50"
+            >
+              <option value="">
+                {form.category ? "— Pilih Sub-Category —" : "Pilih Category dulu"}
+              </option>
+              {getSubOptions(form.category).map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
               Image
             </label>
             <input
@@ -340,6 +391,12 @@ export function EcomManager() {
                 </p>
 
                 <div className="flex flex-wrap gap-1.5 text-[11px] text-macos-secondary font-mono">
+                  {item.category && (
+                    <span className="px-2 py-0.5 bg-macos-blue/10 text-macos-blue rounded-full">
+                      {getCategoryLabel(item.category)}
+                      {item.subCategory ? ` · ${item.subCategory}` : ""}
+                    </span>
+                  )}
                   <span className="px-2 py-0.5 bg-macos-separator/30 rounded-full">
                     Size: {item.size}
                   </span>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isValidEcomCategory } from "@/lib/ecomCategories";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -70,6 +71,12 @@ export async function PATCH(
         const raw = formData.get("diameter") as string;
         data.diameter = raw.trim() === "" ? null : Number(raw);
       }
+      if (formData.has("category")) {
+        const raw = (formData.get("category") as string).trim();
+        data.category = raw === "" ? null : raw;
+      }
+      if (formData.has("subCategory"))
+        data.subCategory = (formData.get("subCategory") as string).trim() || null;
 
       const image = formData.get("image") as File | null;
       const newImageUrl = await saveImageIfPresent(image);
@@ -83,6 +90,16 @@ export async function PATCH(
       if (body.diameter !== undefined)
         data.diameter = body.diameter === null || body.diameter === "" ? null : Number(body.diameter);
       if (body.imageUrl !== undefined) data.imageUrl = body.imageUrl;
+      if (body.category !== undefined) data.category = body.category || null;
+      if (body.subCategory !== undefined)
+        data.subCategory = body.subCategory ? String(body.subCategory).trim() : null;
+    }
+
+    if (data.category && !isValidEcomCategory(data.category)) {
+      return NextResponse.json(
+        { error: "category must be one of MATERIALS, TOOLING, STANDARD_PART." },
+        { status: 400 },
+      );
     }
 
     const updated = await prisma.ecom.update({ where: { id }, data });

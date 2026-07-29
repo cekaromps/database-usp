@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isValidEcomCategory } from "@/lib/ecomCategories";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -28,16 +29,18 @@ async function saveImageIfPresent(image: File | null): Promise<string | null> {
   return `/uploads/ecom/${filename}`;
 }
 
-// GET /api/ecom?search=... — list all items, newest first
+// GET /api/ecom?search=...&category=... — list all items, newest first
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim();
+    const category = searchParams.get("category")?.trim();
 
     const items = await prisma.ecom.findMany({
-      where: search
-        ? { name: { contains: search, mode: "insensitive" } }
-        : undefined,
+      where: {
+        ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
+        ...(category && isValidEcomCategory(category) ? { category } : {}),
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -60,6 +63,8 @@ export async function POST(request: NextRequest) {
     let diameterRaw: string | null = null;
     let quantityRaw: string | null = null;
     let imageUrl: string | null = null;
+    let category: string | null = null;
+    let subCategory: string | null = null;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
@@ -68,6 +73,8 @@ export async function POST(request: NextRequest) {
       size = (formData.get("size") as string) ?? null;
       diameterRaw = (formData.get("diameter") as string) ?? null;
       quantityRaw = (formData.get("quantity") as string) ?? null;
+      category = (formData.get("category") as string) ?? null;
+      subCategory = (formData.get("subCategory") as string) ?? null;
       const image = formData.get("image") as File | null;
       imageUrl = await saveImageIfPresent(image);
     } else {
@@ -78,6 +85,8 @@ export async function POST(request: NextRequest) {
       diameterRaw = body.diameter != null ? String(body.diameter) : null;
       quantityRaw = body.quantity != null ? String(body.quantity) : null;
       imageUrl = body.imageUrl ?? null;
+      category = body.category ?? null;
+      subCategory = body.subCategory ?? null;
     }
 
     if (!name?.trim() || !priceRaw || !size?.trim() || !quantityRaw) {
@@ -110,6 +119,12 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (category && !isValidEcomCategory(category)) {
+      return NextResponse.json(
+        { error: "category must be one of MATERIALS, TOOLING, STANDARD_PART." },
+        { status: 400 },
+      );
+    }
 
     const item = await prisma.ecom.create({
       data: {
@@ -119,6 +134,8 @@ export async function POST(request: NextRequest) {
         diameter,
         quantity,
         imageUrl,
+        category: category ? (category as any) : null,
+        subCategory: subCategory?.trim() || null,
       },
     });
 
