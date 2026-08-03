@@ -1,16 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import Link from "next/link";
 import {
   ECOM_CATEGORIES,
   getCategoryLabel,
   getSubOptions,
 } from "@/lib/ecomCategories";
 import {
-  IoChevronDown,
   IoChevronForward,
   IoFolderOutline,
-  IoFolderOpenOutline,
   IoSearchOutline,
   IoCloseCircle,
 } from "react-icons/io5";
@@ -52,9 +51,7 @@ export function EcomManager() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
 
   const loadItems = useCallback(async () => {
@@ -90,7 +87,7 @@ export function EcomManager() {
     });
   }, [items, search]);
 
-  // Group filtered items by category
+  // Group filtered items by category — just for folder counts/labels now
   const groupedItems = useMemo(() => {
     if (!filteredItems) return null;
     const map = new Map<string, EcomItem[]>();
@@ -105,34 +102,6 @@ export function EcomManager() {
       return getCategoryLabel(a[0]).localeCompare(getCategoryLabel(b[0]));
     });
   }, [filteredItems]);
-
-  // Open all folders by default once items first load
-  useEffect(() => {
-    if (items && openFolders.size === 0) {
-      const map = new Map<string, EcomItem[]>();
-      for (const item of items) {
-        const key = item.category ?? UNCATEGORIZED_KEY;
-        map.set(key, []);
-      }
-      setOpenFolders(new Set(map.keys()));
-    }
-  }, [items, openFolders.size]);
-
-  // Auto-expand folders that contain a search match, while searching
-  useEffect(() => {
-    if (search.trim() && groupedItems) {
-      setOpenFolders(new Set(groupedItems.map(([key]) => key)));
-    }
-  }, [search, groupedItems]);
-
-  const toggleFolder = (key: string) => {
-    setOpenFolders((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
 
   const handleFieldChange = (field: keyof typeof emptyForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -200,11 +169,6 @@ export function EcomManager() {
       if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`);
 
       setItems((prev) => (prev ? [data, ...prev] : [data]));
-      setOpenFolders((prev) => {
-        const next = new Set(prev);
-        next.add(data.category ?? UNCATEGORIZED_KEY);
-        return next;
-      });
       resetForm();
     } catch (err: any) {
       setSubmitError(err.message ?? "Gagal menambahkan item.");
@@ -212,28 +176,6 @@ export function EcomManager() {
       setSubmitting(false);
     }
   };
-
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
-    try {
-      const res = await fetch(`/api/ecom/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `Failed (${res.status})`);
-      }
-      setItems((prev) => (prev ? prev.filter((i) => i.id !== id) : prev));
-    } catch (err: any) {
-      setLoadError(err.message ?? "Gagal menghapus item.");
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const formatIDR = (val: number) =>
-    new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(val);
 
   const totalResults = filteredItems?.length ?? 0;
 
@@ -431,7 +373,7 @@ export function EcomManager() {
         </div>
       </form>
 
-      {/* ITEMS LIST — searchable, grouped into folders by category */}
+      {/* CATEGORY FOLDERS — click to open category page */}
       <div className="bg-macos-popover border border-macos-separator p-6 rounded-xl shadow-2xl">
         <div className="flex items-center justify-between border-b border-macos-separator pb-2 mb-4 gap-3 flex-wrap">
           <h3 className="text-lg font-semibold text-macos-primary">
@@ -493,122 +435,33 @@ export function EcomManager() {
         {groupedItems && groupedItems.length > 0 && (
           <div className="space-y-2">
             {groupedItems.map(([categoryKey, categoryItems]) => {
-              const isOpen = openFolders.has(categoryKey);
               const label =
                 categoryKey === UNCATEGORIZED_KEY
                   ? "Uncategorized"
                   : getCategoryLabel(categoryKey);
 
               return (
-                <div
+                <Link
                   key={categoryKey}
-                  className="border border-macos-separator/50 rounded-lg overflow-hidden"
+                  href={`/dashboard/ecom/${encodeURIComponent(categoryKey)}`}
+                  className="w-full flex items-center justify-between px-3 py-2.5 border border-macos-separator/50 rounded-lg bg-macos-tertiary/60 hover:bg-macos-tertiary transition cursor-pointer"
                 >
-                  {/* Folder header */}
-                  <button
-                    type="button"
-                    onClick={() => toggleFolder(categoryKey)}
-                    className="w-full flex items-center justify-between px-3 py-2 bg-macos-tertiary/60 hover:bg-macos-tertiary transition text-left cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      {isOpen ? (
-                        <IoChevronDown
-                          size={12}
-                          className="text-macos-secondary"
-                        />
-                      ) : (
-                        <IoChevronForward
-                          size={12}
-                          className="text-macos-secondary"
-                        />
-                      )}
-                      {isOpen ? (
-                        <IoFolderOpenOutline
-                          size={16}
-                          className="text-macos-blue"
-                        />
-                      ) : (
-                        <IoFolderOutline
-                          size={16}
-                          className="text-macos-blue"
-                        />
-                      )}
-                      <span className="font-semibold text-[13px] text-macos-primary">
-                        {label}
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <IoFolderOutline size={16} className="text-macos-blue" />
+                    <span className="font-semibold text-[13px] text-macos-primary">
+                      {label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <span className="text-[11px] text-macos-secondary font-mono px-1.5 py-0.5 bg-macos-separator/30 rounded-full">
                       {categoryItems.length}
                     </span>
-                  </button>
-
-                  {/* Folder contents — compact grid */}
-                  {isOpen && (
-                    <div className="p-3 border-t border-macos-separator/40">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
-                        {categoryItems.map((item) => (
-                          <div
-                            key={item.id}
-                            className="bg-macos-base/30 border border-macos-separator/40 rounded-lg p-2 flex gap-2 animate-scale-up"
-                          >
-                            {/* Image */}
-                            <div className="w-14 h-14 flex-shrink-0 bg-macos-tertiary rounded-md overflow-hidden flex items-center justify-center">
-                              {item.imageUrl ? (
-                                <img
-                                  src={item.imageUrl}
-                                  alt={item.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <span className="text-macos-secondary text-[8px] text-center px-1">
-                                  No image
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Info */}
-                            <div className="flex-1 min-w-0 space-y-1">
-                              <p className="font-semibold text-macos-primary text-[12px] truncate leading-tight">
-                                {item.name}
-                              </p>
-                              <p className="text-macos-blue font-mono font-bold text-[11px]">
-                                IDR {formatIDR(item.price)}
-                              </p>
-
-                              <div className="flex flex-wrap gap-1 text-[9px] text-macos-secondary font-mono">
-                                {item.subCategory && (
-                                  <span className="px-1.5 py-0.5 bg-macos-blue/10 text-macos-blue rounded-full">
-                                    {item.subCategory}
-                                  </span>
-                                )}
-                                <span className="px-1.5 py-0.5 bg-macos-separator/30 rounded-full">
-                                  {item.size}
-                                </span>
-                                {item.diameter != null && (
-                                  <span className="px-1.5 py-0.5 bg-macos-separator/30 rounded-full">
-                                    ⌀{item.diameter}mm
-                                  </span>
-                                )}
-                                <span className="px-1.5 py-0.5 bg-macos-separator/30 rounded-full">
-                                  Qty {item.quantity}
-                                </span>
-                              </div>
-
-                              <button
-                                type="button"
-                                disabled={deletingId === item.id}
-                                onClick={() => handleDelete(item.id)}
-                                className="w-full mt-0.5 py-1 border border-macos-red/20 text-macos-red bg-macos-red/5 rounded-md text-[10px] hover:bg-macos-red hover:text-white transition cursor-pointer font-semibold disabled:opacity-50"
-                              >
-                                {deletingId === item.id ? "..." : "✕ Delete"}
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    <IoChevronForward
+                      size={14}
+                      className="text-macos-secondary"
+                    />
+                  </div>
+                </Link>
               );
             })}
           </div>
