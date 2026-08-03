@@ -1,7 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { ECOM_CATEGORIES, getCategoryLabel, getSubOptions } from "@/lib/ecomCategories";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import {
+  ECOM_CATEGORIES,
+  getCategoryLabel,
+  getSubOptions,
+} from "@/lib/ecomCategories";
+import {
+  IoChevronDown,
+  IoChevronForward,
+  IoFolderOutline,
+  IoFolderOpenOutline,
+  IoSearchOutline,
+  IoCloseCircle,
+} from "react-icons/io5";
 
 interface EcomItem {
   id: string;
@@ -27,6 +39,8 @@ const emptyForm = {
   subCategory: "",
 };
 
+const UNCATEGORIZED_KEY = "__uncategorized__";
+
 export function EcomManager() {
   const [items, setItems] = useState<EcomItem[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -39,6 +53,9 @@ export function EcomManager() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
 
   const loadItems = useCallback(async () => {
     try {
@@ -54,6 +71,68 @@ export function EcomManager() {
   useEffect(() => {
     loadItems();
   }, [loadItems]);
+
+  // Filter by search first
+  const filteredItems = useMemo(() => {
+    if (!items) return items;
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((item) => {
+      const categoryLabel = item.category
+        ? getCategoryLabel(item.category).toLowerCase()
+        : "";
+      return (
+        item.name.toLowerCase().includes(q) ||
+        categoryLabel.includes(q) ||
+        (item.subCategory ?? "").toLowerCase().includes(q) ||
+        item.size.toLowerCase().includes(q)
+      );
+    });
+  }, [items, search]);
+
+  // Group filtered items by category
+  const groupedItems = useMemo(() => {
+    if (!filteredItems) return null;
+    const map = new Map<string, EcomItem[]>();
+    for (const item of filteredItems) {
+      const key = item.category ?? UNCATEGORIZED_KEY;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    return Array.from(map.entries()).sort((a, b) => {
+      if (a[0] === UNCATEGORIZED_KEY) return 1;
+      if (b[0] === UNCATEGORIZED_KEY) return -1;
+      return getCategoryLabel(a[0]).localeCompare(getCategoryLabel(b[0]));
+    });
+  }, [filteredItems]);
+
+  // Open all folders by default once items first load
+  useEffect(() => {
+    if (items && openFolders.size === 0) {
+      const map = new Map<string, EcomItem[]>();
+      for (const item of items) {
+        const key = item.category ?? UNCATEGORIZED_KEY;
+        map.set(key, []);
+      }
+      setOpenFolders(new Set(map.keys()));
+    }
+  }, [items, openFolders.size]);
+
+  // Auto-expand folders that contain a search match, while searching
+  useEffect(() => {
+    if (search.trim() && groupedItems) {
+      setOpenFolders(new Set(groupedItems.map(([key]) => key)));
+    }
+  }, [search, groupedItems]);
+
+  const toggleFolder = (key: string) => {
+    setOpenFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const handleFieldChange = (field: keyof typeof emptyForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -110,7 +189,8 @@ export function EcomManager() {
     if (form.diameter.trim() !== "")
       body.append("diameter", form.diameter.trim());
     if (form.category) body.append("category", form.category);
-    if (form.category && form.subCategory) body.append("subCategory", form.subCategory);
+    if (form.category && form.subCategory)
+      body.append("subCategory", form.subCategory);
     if (imageFile) body.append("image", imageFile);
 
     setSubmitting(true);
@@ -120,6 +200,11 @@ export function EcomManager() {
       if (!res.ok) throw new Error(data.error ?? `Failed (${res.status})`);
 
       setItems((prev) => (prev ? [data, ...prev] : [data]));
+      setOpenFolders((prev) => {
+        const next = new Set(prev);
+        next.add(data.category ?? UNCATEGORIZED_KEY);
+        return next;
+      });
       resetForm();
     } catch (err: any) {
       setSubmitError(err.message ?? "Gagal menambahkan item.");
@@ -149,6 +234,8 @@ export function EcomManager() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(val);
+
+  const totalResults = filteredItems?.length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -285,7 +372,9 @@ export function EcomManager() {
               className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition disabled:opacity-50"
             >
               <option value="">
-                {form.category ? "— Pilih Sub-Category —" : "Pilih Category dulu"}
+                {form.category
+                  ? "— Pilih Sub-Category —"
+                  : "Pilih Category dulu"}
               </option>
               {getSubOptions(form.category).map((opt) => (
                 <option key={opt} value={opt}>
@@ -315,7 +404,7 @@ export function EcomManager() {
             <img
               src={imagePreview}
               alt="Preview"
-              className="h-16 w-16 object-cover rounded-md border border-macos-separator"
+              className="h-12 w-12 object-cover rounded-md border border-macos-separator"
             />
             <button
               type="button"
@@ -342,11 +431,41 @@ export function EcomManager() {
         </div>
       </form>
 
-      {/* ITEMS LIST */}
+      {/* ITEMS LIST — searchable, grouped into folders by category */}
       <div className="bg-macos-popover border border-macos-separator p-6 rounded-xl shadow-2xl">
-        <h3 className="text-lg font-semibold text-macos-primary border-b border-macos-separator pb-2 mb-4">
-          Item Catalog
-        </h3>
+        <div className="flex items-center justify-between border-b border-macos-separator pb-2 mb-4 gap-3 flex-wrap">
+          <h3 className="text-lg font-semibold text-macos-primary">
+            Item Catalog
+          </h3>
+          <span className="text-xs text-macos-secondary font-mono">
+            {totalResults} item{totalResults === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative w-full max-w-sm mb-4">
+          <IoSearchOutline
+            size={15}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-macos-secondary"
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari nama, kategori, ukuran..."
+            className="w-full pl-8 pr-7 py-1.5 rounded-md bg-macos-tertiary border border-macos-separator text-xs text-macos-primary placeholder:text-macos-secondary/70 focus:outline-none focus:border-macos-blue transition"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-macos-secondary hover:text-macos-primary cursor-pointer"
+              aria-label="Clear search"
+            >
+              <IoCloseCircle size={15} />
+            </button>
+          )}
+        </div>
 
         {loadError && (
           <p className="text-sm text-macos-red mb-3">Error: {loadError}</p>
@@ -362,64 +481,136 @@ export function EcomManager() {
           </p>
         )}
 
-        {items && items.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="bg-macos-base/30 border border-macos-separator/40 rounded-xl p-4 space-y-2 animate-scale-up"
-              >
-                <div className="w-full aspect-square bg-macos-tertiary rounded-lg overflow-hidden flex items-center justify-center">
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-macos-secondary text-xs">
-                      No image
-                    </span>
-                  )}
-                </div>
+        {items &&
+          items.length > 0 &&
+          groupedItems &&
+          groupedItems.length === 0 && (
+            <p className="text-sm text-macos-secondary">
+              Tidak ada item yang cocok dengan pencarian "{search}".
+            </p>
+          )}
 
-                <p className="font-semibold text-macos-primary text-sm truncate">
-                  {item.name}
-                </p>
-                <p className="text-macos-blue font-mono font-bold text-sm">
-                  IDR {formatIDR(item.price)}
-                </p>
+        {groupedItems && groupedItems.length > 0 && (
+          <div className="space-y-2">
+            {groupedItems.map(([categoryKey, categoryItems]) => {
+              const isOpen = openFolders.has(categoryKey);
+              const label =
+                categoryKey === UNCATEGORIZED_KEY
+                  ? "Uncategorized"
+                  : getCategoryLabel(categoryKey);
 
-                <div className="flex flex-wrap gap-1.5 text-[11px] text-macos-secondary font-mono">
-                  {item.category && (
-                    <span className="px-2 py-0.5 bg-macos-blue/10 text-macos-blue rounded-full">
-                      {getCategoryLabel(item.category)}
-                      {item.subCategory ? ` · ${item.subCategory}` : ""}
-                    </span>
-                  )}
-                  <span className="px-2 py-0.5 bg-macos-separator/30 rounded-full">
-                    Size: {item.size}
-                  </span>
-                  {item.diameter != null && (
-                    <span className="px-2 py-0.5 bg-macos-separator/30 rounded-full">
-                      ⌀ {item.diameter}mm
-                    </span>
-                  )}
-                  <span className="px-2 py-0.5 bg-macos-separator/30 rounded-full">
-                    Qty: {item.quantity}
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={deletingId === item.id}
-                  onClick={() => handleDelete(item.id)}
-                  className="w-full mt-1 py-1.5 border border-macos-red/20 text-macos-red bg-macos-red/5 rounded-md text-xs hover:bg-macos-red hover:text-white transition cursor-pointer font-semibold disabled:opacity-50"
+              return (
+                <div
+                  key={categoryKey}
+                  className="border border-macos-separator/50 rounded-lg overflow-hidden"
                 >
-                  {deletingId === item.id ? "Menghapus..." : "✕ Delete"}
-                </button>
-              </div>
-            ))}
+                  {/* Folder header */}
+                  <button
+                    type="button"
+                    onClick={() => toggleFolder(categoryKey)}
+                    className="w-full flex items-center justify-between px-3 py-2 bg-macos-tertiary/60 hover:bg-macos-tertiary transition text-left cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      {isOpen ? (
+                        <IoChevronDown
+                          size={12}
+                          className="text-macos-secondary"
+                        />
+                      ) : (
+                        <IoChevronForward
+                          size={12}
+                          className="text-macos-secondary"
+                        />
+                      )}
+                      {isOpen ? (
+                        <IoFolderOpenOutline
+                          size={16}
+                          className="text-macos-blue"
+                        />
+                      ) : (
+                        <IoFolderOutline
+                          size={16}
+                          className="text-macos-blue"
+                        />
+                      )}
+                      <span className="font-semibold text-[13px] text-macos-primary">
+                        {label}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-macos-secondary font-mono px-1.5 py-0.5 bg-macos-separator/30 rounded-full">
+                      {categoryItems.length}
+                    </span>
+                  </button>
+
+                  {/* Folder contents — compact grid */}
+                  {isOpen && (
+                    <div className="p-3 border-t border-macos-separator/40">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
+                        {categoryItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className="bg-macos-base/30 border border-macos-separator/40 rounded-lg p-2 flex gap-2 animate-scale-up"
+                          >
+                            {/* Image */}
+                            <div className="w-14 h-14 flex-shrink-0 bg-macos-tertiary rounded-md overflow-hidden flex items-center justify-center">
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-macos-secondary text-[8px] text-center px-1">
+                                  No image
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <p className="font-semibold text-macos-primary text-[12px] truncate leading-tight">
+                                {item.name}
+                              </p>
+                              <p className="text-macos-blue font-mono font-bold text-[11px]">
+                                IDR {formatIDR(item.price)}
+                              </p>
+
+                              <div className="flex flex-wrap gap-1 text-[9px] text-macos-secondary font-mono">
+                                {item.subCategory && (
+                                  <span className="px-1.5 py-0.5 bg-macos-blue/10 text-macos-blue rounded-full">
+                                    {item.subCategory}
+                                  </span>
+                                )}
+                                <span className="px-1.5 py-0.5 bg-macos-separator/30 rounded-full">
+                                  {item.size}
+                                </span>
+                                {item.diameter != null && (
+                                  <span className="px-1.5 py-0.5 bg-macos-separator/30 rounded-full">
+                                    ⌀{item.diameter}mm
+                                  </span>
+                                )}
+                                <span className="px-1.5 py-0.5 bg-macos-separator/30 rounded-full">
+                                  Qty {item.quantity}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={deletingId === item.id}
+                                onClick={() => handleDelete(item.id)}
+                                className="w-full mt-0.5 py-1 border border-macos-red/20 text-macos-red bg-macos-red/5 rounded-md text-[10px] hover:bg-macos-red hover:text-white transition cursor-pointer font-semibold disabled:opacity-50"
+                              >
+                                {deletingId === item.id ? "..." : "✕ Delete"}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
