@@ -12,7 +12,7 @@ export default async function LandingPage() {
   const isLoggedIn = !!session?.userId;
 
   return (
-    <div className="min-h-screen bg-macos-base text-macos-primary font-sans antialiased flex flex-col justify-between relative overflow-hidden selection:bg-macos-blue/30 selection:text-white">
+    <div className="min-h-screen bg-macos-base text-macos-primary font-sans antialiased flex flex-col relative overflow-hidden selection:bg-macos-blue/30 selection:text-white">
       <header className="w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between border-b border-macos-separator/30 relative z-10">
         <div className="flex items-center gap-3 select-none">
           <img
@@ -20,7 +20,7 @@ export default async function LandingPage() {
             alt="Logo PT. Utama Pasogit Sejahtera"
             className="h-9 w-auto object-contain brightness-110"
           />
-          <span className="text-md font-bold tracking-tight text-white">
+          <span className="text-md font-bold tracking-tight text-macos-primary">
             Utama Pasogit Sejahtera
           </span>
         </div>
@@ -44,7 +44,7 @@ export default async function LandingPage() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center text-center px-6 max-w-4xl mx-auto relative z-10 py-16">
+      <main className="w-full max-w-7xl mx-auto flex flex-col items-center justify-start text-center px-6 pt-8 relative">
         <ItemList />
       </main>
 

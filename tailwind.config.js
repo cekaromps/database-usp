@@ -1,44 +1,44 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    "./**/*.{js,jsx,ts,tsx}",
-  ],
+  content: ["./**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
       colors: {
         macos: {
           // Window & Panel Surfaces
-          'base': '#1E1E1E',       // Main window background
-          'secondary': '#252525',  // Sidebar / list background
-          'tertiary': '#2D2D2D',   // Active elements / cards
-          'popover': '#323232',    // Dropdowns / tooltips
-          
+          base: "#F5F5F7", // Main window background
+          secondary: "#FFFFFF", // Sidebar / list background
+          tertiary: "#F2F2F7", // Cards / active elements
+          popover: "#FFFFFF", // Dropdowns / tooltips
+
           // Semantic Accents
-          'blue': '#0A84FF',
-          'green': '#32D74B',
-          'red': '#FF453A',
-          'yellow': '#FFD60A',
-          'orange': '#FF9F0A',
+          blue: "#007AFF",
+          green: "#34C759",
+          red: "#FF3B30",
+          yellow: "#FFCC00",
+          orange: "#FF9500",
 
           // Traffic Lights
-          'close': '#FF605C',
-          'minimize': '#FFBD44',
-          'zoom': '#00CA4E',
+          close: "#FF5F57",
+          minimize: "#FEBC2E",
+          zoom: "#28C840",
         },
       },
+
       textColor: {
         macos: {
-          'primary': '#FFFFFF',
-          'secondary': 'rgba(235, 235, 245, 0.60)',
-          'tertiary': 'rgba(235, 235, 245, 0.30)',
-        }
+          primary: "#1D1D1F",
+          secondary: "rgba(60, 60, 67, 0.75)",
+          tertiary: "rgba(60, 60, 67, 0.45)",
+        },
       },
+
       borderColor: {
         macos: {
-          'separator': 'rgba(235, 235, 245, 0.18)',
-        }
-      }
+          separator: "rgba(60, 60, 67, 0.18)",
+        },
+      },
     },
   },
   plugins: [],
-}
+};
