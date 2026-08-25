@@ -217,8 +217,8 @@ model Ecom {
 }
 
 model Customer {
-  id          Int
-  code        String
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(3)
   name        String
   address     String
   createdAt   DateTime @default(now())
