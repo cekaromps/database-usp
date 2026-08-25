@@ -14,7 +14,7 @@ import {
   IoCloseCircle,
 } from "react-icons/io5";
 
-interface EcomItem {
+export interface EcomItem {
   id: string;
   name: string;
   price: number;

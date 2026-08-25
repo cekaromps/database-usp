@@ -45,17 +45,17 @@ export const menuItems: MenuItem[] = [
     title: "Ecommerce",
     description: "List item ecommerce",
   },
-  {
-    icon: "👥",
-    title: "HR",
-    disabled: true,
-  },
-  {
-    icon: "👥",
-    title: "Manajemen User",
-    description: "Manajemen akun",
-    disabled: true,
-  },
+  //{
+  //  icon: "👥",
+  //  title: "HR",
+  //  disabled: true,
+  //},
+  //{
+  //  icon: "👥",
+  //  title: "Manajemen User",
+  //  description: "Manajemen akun",
+  //  disabled: true,
+  //},
   {
     icon: "⚙️",
     title: "Aplikasi",
