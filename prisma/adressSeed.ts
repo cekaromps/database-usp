@@ -113,6 +113,11 @@ async function main() {
         name: customer.name,
         address: customer.address,
       },
+      create: {
+        code: customer.code,
+        name: customer.name,
+        address: customer.address,
+      },
     });
 
     console.log("Seeding finished");
