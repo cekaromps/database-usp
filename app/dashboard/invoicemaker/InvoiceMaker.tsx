@@ -13,27 +13,12 @@ interface ItemRow {
   unit: "pcs" | "unit" | "set";
 }
 
-const CUSTOMER_CODES: Record<string, string> = {
-  "PT OSI": "01",
-  "PT ALCOTRAINDO BATAM": "06",
-  "PT NOK FREDEUNBERG BATAM": "024",
-  "PT AMTEK RE-ENGINEERING": "029",
-  "PT CLADTEK": "034",
-  "PT RAAJRATNA": "036",
-  "PT ALTECO CHEMICAL": "043",
-  "PT DYNACAST INDONESIA": "078",
-  "PT INDO KREASI GRAFIKA": "092",
-  "CV. CILINTON BARAT": "093",
-  "PT BROADFAR INDONESIA": "098",
-  "PT PECM INDONESIA": "096",
-  "PT LABROY": "103",
-  "PT WAHANA TIRTA MILENIA": "106",
-  "PT. BATAM NIAGA": "107",
-  "PT TSI SMART PRODUCTS": "108",
-  "PT. BLUE OCEAN LABS": "109",
-  "PT. BEC": "110",
-  "PT ANUGERAH SAHABAT MARINE": "081",
-};
+interface Customer {
+  id: number;
+  code: string;
+  name: string;
+  address: string;
+}
 
 const AVAILABLE_PROCESSES = [
   "Machining",
@@ -90,10 +75,24 @@ export default function InvoiceForm() {
   const [quotationNumber, setQuotationNumber] = useState("Q000-2605-001");
   const [discount, setDiscount] = useState(0);
 
+  // 🌟 Daftar Customer sekarang datang dari database (tabel Customer), bukan
+  // dari object hardcoded lagi. Diambil sekali saat form dibuka.
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
   // State khusus Autocomplete Customer
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const autocompleteRef = useRef<HTMLDivElement>(null);
+
+  // 🌟 State untuk modal "Tambah Customer Baru"
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [newCustomerCode, setNewCustomerCode] = useState("");
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerAddress, setNewCustomerAddress] = useState("");
+  const [customerFormError, setCustomerFormError] = useState<string | null>(
+    null,
+  );
+  const [isSavingCustomer, setIsSavingCustomer] = useState(false);
 
   // State khusus Autocomplete Material (per baris item) — now tag-based
   const [materialOpenId, setMaterialOpenId] = useState<number | null>(null);
@@ -118,6 +117,17 @@ export default function InvoiceForm() {
       unit: "pcs",
     },
   ]);
+
+  // 🌟 Ambil daftar customer dari database saat form pertama kali dibuka
+  useEffect(() => {
+    fetch("/api/customers")
+      .then((res) => res.json())
+      .then((data) => setCustomers(data.customers || []))
+      .catch((err) => {
+        console.error("Failed to load customers:", err);
+        setCustomers([]);
+      });
+  }, []);
 
   // ====== HELPER: AUTOCOMPLETE MATERIAL (tag-based, bebas ketik) ======
   const getMaterialSuggestions = (itemId: number, value: string) => {
@@ -240,43 +250,13 @@ export default function InvoiceForm() {
     return `${yy}${mm}`;
   };
 
-  const handleInputChange = (value: string) => {
-    setCustomerName(value);
-    setShowSuggestions(true);
-
-    const cleanInput = value.toUpperCase().trim();
-
-    if (cleanInput.length > 0) {
-      const filtered = Object.keys(CUSTOMER_CODES).filter((name) =>
-        name.toUpperCase().includes(cleanInput),
-      );
-      setSuggestions(filtered);
-    } else {
-      setSuggestions([]);
-    }
-
-    let companyCode = "000";
-    for (const [name, code] of Object.entries(CUSTOMER_CODES)) {
-      if (cleanInput === name.toUpperCase()) {
-        companyCode = code.padStart(3, "0");
-        break;
-      }
-    }
-    setQuotationNumber(`Q${companyCode}-${getDatePrefix()}-001`);
-  };
-
-  const handleSelectSuggestion = (name: string) => {
+  // 🌟 Logika inti pemilihan customer (dipakai baik saat klik saran
+  // autocomplete maupun langsung setelah berhasil membuat customer baru).
+  const applyCustomerSelection = (name: string, code: string) => {
     setCustomerName(name);
     setShowSuggestions(false);
 
-    const cleanInput = name.toUpperCase().trim();
-    let companyCode = "000";
-    for (const [cName, code] of Object.entries(CUSTOMER_CODES)) {
-      if (cleanInput === cName.toUpperCase()) {
-        companyCode = code.padStart(3, "0");
-        break;
-      }
-    }
+    const companyCode = (code || "000").padStart(3, "0");
 
     fetch(
       `/api/next-subitem?customer=${encodeURIComponent(name)}&t=${Date.now()}`,
@@ -291,6 +271,83 @@ export default function InvoiceForm() {
       .catch(() => {
         setQuotationNumber(`Q${companyCode}-${getDatePrefix()}-001`);
       });
+  };
+
+  const handleInputChange = (value: string) => {
+    setCustomerName(value);
+    setShowSuggestions(true);
+
+    const cleanInput = value.toUpperCase().trim();
+
+    if (cleanInput.length > 0) {
+      const filtered = customers
+        .filter((c) => c.name.toUpperCase().includes(cleanInput))
+        .map((c) => c.name);
+      setSuggestions(filtered);
+    } else {
+      setSuggestions([]);
+    }
+
+    const matched = customers.find((c) => c.name.toUpperCase() === cleanInput);
+    const companyCode = (matched?.code ?? "000").padStart(3, "0");
+    setQuotationNumber(`Q${companyCode}-${getDatePrefix()}-001`);
+  };
+
+  const handleSelectSuggestion = (name: string) => {
+    const matched = customers.find(
+      (c) => c.name.toUpperCase() === name.toUpperCase(),
+    );
+    applyCustomerSelection(name, matched?.code ?? "000");
+  };
+
+  // 🌟 Simpan customer baru (code, name, address) lewat /api/customers,
+  // lalu langsung pilih customer tersebut di form quotation.
+  const handleCreateCustomer = async () => {
+    setCustomerFormError(null);
+
+    const code = newCustomerCode.trim().toUpperCase();
+    const name = newCustomerName.trim();
+    const address = newCustomerAddress.trim();
+
+    if (!code || !name || !address) {
+      setCustomerFormError("Code, Name, dan Address wajib diisi semua.");
+      return;
+    }
+
+    setIsSavingCustomer(true);
+    try {
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, name, address }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCustomerFormError(data.error || "Gagal menyimpan customer baru.");
+        return;
+      }
+
+      const created: Customer = data.customer;
+      setCustomers((prev) =>
+        [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+
+      // Langsung pilih customer baru ini supaya quotation number ikut ter-generate
+      applyCustomerSelection(created.name, created.code);
+
+      setNewCustomerCode("");
+      setNewCustomerName("");
+      setNewCustomerAddress("");
+      setShowCustomerModal(false);
+    } catch (err) {
+      console.error("Failed to create customer:", err);
+      setCustomerFormError(
+        "Terjadi kesalahan jaringan saat menyimpan customer.",
+      );
+    } finally {
+      setIsSavingCustomer(false);
+    }
   };
 
   const addItemRow = () => {
@@ -400,37 +457,53 @@ export default function InvoiceForm() {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* INPUT CUSTOMER NAME DENGAN AUTOCOMPLETE */}
-          <div ref={autocompleteRef} className="relative">
-            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-              To (Customer Name) *
-            </label>
-            <input
-              name="customer"
-              type="text"
-              required
-              autoComplete="off"
-              value={customerName}
-              disabled={isPending}
-              placeholder="Ketik nama perusahaan, cth: ALCO..."
-              onFocus={() => setShowSuggestions(true)}
-              onChange={(e) => handleInputChange(e.target.value)}
-              className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
-            />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-macos-secondary">
+                To (Customer Name) *
+              </label>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  setCustomerFormError(null);
+                  setShowCustomerModal(true);
+                }}
+                className="text-[11px] font-semibold text-macos-blue hover:underline cursor-pointer"
+              >
+                ＋ Customer Baru
+              </button>
+            </div>
 
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-macos-popover border border-macos-separator rounded-lg shadow-2xl z-50 py-1 divide-y divide-macos-separator/40 animate-scale-up">
-                {suggestions.map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => handleSelectSuggestion(name)}
-                    className="w-full text-left px-3 py-2 text-xs text-macos-primary hover:bg-macos-blue hover:text-white transition cursor-pointer font-medium border-none bg-transparent"
-                  >
-                    🏢 {name}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div ref={autocompleteRef} className="relative">
+              <input
+                name="customer"
+                type="text"
+                required
+                autoComplete="off"
+                value={customerName}
+                disabled={isPending}
+                placeholder="Ketik nama perusahaan, cth: ALCO..."
+                onFocus={() => setShowSuggestions(true)}
+                onChange={(e) => handleInputChange(e.target.value)}
+                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
+              />
+
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-macos-popover border border-macos-separator rounded-lg shadow-2xl z-50 py-1 divide-y divide-macos-separator/40 animate-scale-up">
+                  {suggestions.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => handleSelectSuggestion(name)}
+                      className="w-full text-left px-3 py-2 text-xs text-macos-primary hover:bg-macos-blue hover:text-white transition cursor-pointer font-medium border-none bg-transparent"
+                    >
+                      🏢 {name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
@@ -965,6 +1038,97 @@ export default function InvoiceForm() {
           </button>
         </div>
       </div>
+
+      {/* 🌟 MODAL: TAMBAH CUSTOMER BARU (Code, Name, Address) */}
+      {showCustomerModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-macos-popover border border-macos-separator rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 animate-scale-up">
+            <div className="flex items-center justify-between border-b border-macos-separator pb-2">
+              <h3 className="text-base font-semibold text-macos-primary">
+                Tambah Customer Baru
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCustomerModal(false)}
+                disabled={isSavingCustomer}
+                className="text-macos-secondary hover:text-macos-red transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {customerFormError && (
+              <div className="p-2.5 bg-macos-red/10 border border-macos-red/30 text-macos-red rounded-lg text-xs font-medium">
+                ✕ {customerFormError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                Code (maks. 3 karakter) *
+              </label>
+              <input
+                type="text"
+                maxLength={3}
+                value={newCustomerCode}
+                disabled={isSavingCustomer}
+                onChange={(e) =>
+                  setNewCustomerCode(e.target.value.toUpperCase())
+                }
+                placeholder="cth: 111"
+                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition font-mono uppercase"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                Nama Customer *
+              </label>
+              <input
+                type="text"
+                value={newCustomerName}
+                disabled={isSavingCustomer}
+                onChange={(e) => setNewCustomerName(e.target.value)}
+                placeholder="cth: PT CONTOH SUKSES"
+                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                Address *
+              </label>
+              <textarea
+                rows={3}
+                value={newCustomerAddress}
+                disabled={isSavingCustomer}
+                onChange={(e) => setNewCustomerAddress(e.target.value)}
+                placeholder="Alamat lengkap perusahaan"
+                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowCustomerModal(false)}
+                disabled={isSavingCustomer}
+                className="flex-1 py-2 border border-macos-separator text-macos-secondary rounded-md text-sm font-semibold hover:bg-macos-tertiary transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateCustomer}
+                disabled={isSavingCustomer}
+                className="flex-1 py-2 bg-macos-blue text-white rounded-md text-sm font-semibold hover:bg-opacity-90 transition cursor-pointer disabled:opacity-50"
+              >
+                {isSavingCustomer ? "Menyimpan..." : "Simpan Customer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

@@ -64,6 +64,10 @@ export async function deleteRecordAction(id: string) {
   revalidatePath("/dashboard/datapodo");
 }
 
+// 🌟 LEGACY FALLBACK: daftar customer lama ini sekarang HANYA dipakai sebagai
+// fallback untuk data invoice lama yang customer-nya belum sempat di-seed ke
+// tabel Customer. Untuk customer baru, gunakan halaman Quotation Maker ->
+// tombol "+ Customer Baru" (data tersimpan ke tabel Customer di database).
 const CUSTOMER_DATA: Record<string, { code: string; address: string }> = {
   "PT OSI": {
     code: "001",
@@ -456,13 +460,30 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
   }
 
   // 🌟 LOGIKA AUTO-FILL ALAMAT SEBELUM INSERT DATABASE
+  // Prioritas 1: cari langsung di tabel Customer (termasuk customer yang baru
+  // saja dibuat lewat tombol "+ Customer Baru" di Quotation Maker).
+  // Prioritas 2 (fallback): daftar hardcoded lama, untuk data customer lama
+  // yang belum sempat di-seed ke tabel Customer.
   const cleanInput = customer.toUpperCase().trim();
   let detectedAddress = "-"; // Default fallback aman jika tidak cocok
 
-  for (const [name, data] of Object.entries(CUSTOMER_DATA)) {
-    if (cleanInput === name.toUpperCase()) {
-      detectedAddress = data.address; // Alamat otomatis ditarik dari list data di atas
-      break;
+  const matchedCustomer = await prisma.customer.findFirst({
+    where: {
+      name: {
+        equals: customer.trim(),
+        mode: "insensitive",
+      },
+    },
+  });
+
+  if (matchedCustomer) {
+    detectedAddress = matchedCustomer.address;
+  } else {
+    for (const [name, data] of Object.entries(CUSTOMER_DATA)) {
+      if (cleanInput === name.toUpperCase()) {
+        detectedAddress = data.address; // Alamat otomatis ditarik dari list data lama
+        break;
+      }
     }
   }
 
