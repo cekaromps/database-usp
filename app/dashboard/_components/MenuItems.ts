@@ -58,8 +58,8 @@ export const menuItems: MenuItem[] = [
   //},
   {
     icon: "⚙️",
-    title: "Aplikasi",
-    description: "Pengaturan aplikasi",
+    title: "User",
+    description: "Manajemen User",
     disabled: true,
   },
 ];
