@@ -1,10 +1,8 @@
 import { logoutAction } from "@/app/actions/auth";
-import { cookies } from "next/headers";
-import { decrypt } from "@/lib/session";
-import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/rbac";
 import { Metadata } from "next";
 import { MenuCard } from "./_components/MenuCard";
-import { menuItems } from "./_components/MenuItems";
+import { menuItems, adminMenuItem } from "./_components/MenuItems";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -14,13 +12,12 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const cookieStore = await cookies();
-  const cookie = cookieStore.get("session")?.value;
-  const session = await decrypt(cookie);
+  const session = await requireUser();
 
-  if (!session?.userId) {
-    redirect("/signin");
-  }
+  const items =
+    session.role === "ADMIN" || session.role === "SUPERADMIN"
+      ? [...menuItems, adminMenuItem]
+      : menuItems;
 
   return (
     <div className="min-h-screen bg-macos-base text-macos-primary p-10 font-sans antialiased">
@@ -33,8 +30,9 @@ export default async function DashboardPage() {
           <p className="text-sm text-macos-secondary mt-0.5">
             Masuk sebagai:{" "}
             <span className="font-semibold text-macos-primary">
-              {String(session?.username)}
-            </span>
+              {session.username}
+            </span>{" "}
+            <span className="text-xs text-macos-tertiary">({session.role})</span>
           </p>
         </div>
         <form action={logoutAction}>
@@ -53,7 +51,7 @@ export default async function DashboardPage() {
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {menuItems.map((item) => (
+          {items.map((item) => (
             <MenuCard key={item.title} {...item} />
           ))}
         </div>

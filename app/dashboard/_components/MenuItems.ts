@@ -56,10 +56,13 @@ export const menuItems: MenuItem[] = [
   //  description: "Manajemen akun",
   //  disabled: true,
   //},
-  {
-    icon: "⚙️",
-    title: "User",
-    description: "Manajemen User",
-    disabled: true,
-  },
 ];
+
+// Only shown to ADMIN / SUPERADMIN — appended dynamically in dashboard/page.tsx
+// based on the logged-in user's role, instead of being a static disabled tile.
+export const adminMenuItem: MenuItem = {
+  href: "/dashboard/admin/users",
+  icon: "⚙️",
+  title: "Manajemen User",
+  description: "Kelola akun, role (superadmin/admin/user), dan status aktif.",
+};
