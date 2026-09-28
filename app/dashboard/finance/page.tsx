@@ -19,8 +19,8 @@ export default async function DashboardPage() {
       : menuItems;
 
   return (
-    <div className="min-h-screen bg-[url(/wallpaper.jpg)] bg-white/50 bg-blend-overlay bg-cover text-macos-primary p-10 font-sans antialiased flex flex-col">
-      <header className="flex items-center justify-between mb-8 pb-4">
+    <div className="min-h-screen bg-macos-base text-macos-primary p-10 font-sans antialiased">
+      <header className="flex items-center justify-between mb-8 pb-4 border-b border-macos-separator">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             Dashboard Central
@@ -45,8 +45,12 @@ export default async function DashboardPage() {
         </form>
       </header>
 
-      <section className="flex-1 w-full flex items-center justify-center">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full max-w-5xl auto-rows-fr justify-items-center">
+      <section className="space-y-6">
+        <h3 className="text-lg font-semibold text-macos-primary tracking-tight">
+          Aplikasi & Menu Sistem
+        </h3>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
           {items.map((item) => (
             <MenuCard key={item.title} {...item} />
           ))}
