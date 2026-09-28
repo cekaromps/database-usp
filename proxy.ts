@@ -23,7 +23,7 @@ async function readSession(token: string | undefined): Promise<SessionPayload | 
   }
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { nextUrl } = req
   const token = req.cookies.get("session")?.value
   const session = await readSession(token)

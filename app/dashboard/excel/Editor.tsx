@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import "@univerjs/preset-sheets-core/lib/index.css";
 
 type UniverAPI = import("@univerjs/presets").FUniver;
@@ -29,11 +30,13 @@ async function loadConverter() {
   };
 }
 
-export default function ExcelEditor() {
+export default function ExcelEditor({ driveFile }: { driveFile: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<UniverAPI | null>(null);
   const univerRef = useRef<Univer | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const loadedRef = useRef<string | null>(null);
+  const router = useRouter();
 
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -105,6 +108,29 @@ export default function ExcelEditor() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!ready || !driveFile || loadedRef.current === driveFile) return;
+    loadedRef.current = driveFile; // prevents double-load in React strict mode
+
+    (async () => {
+      setBusy(true);
+      setMessage("");
+      try {
+        const res = await fetch(
+          `/api/drive/file?filePath=${encodeURIComponent(driveFile)}`,
+        );
+        if (!res.ok) throw new Error("fetch failed");
+        const blob = await res.blob();
+        const name = driveFile.split("/").pop() || "workbook.xlsx";
+        await openFile(new File([blob], name)); // openFile handles .csv/.xls detection
+      } catch (err) {
+        console.error(err);
+        setMessage("Gagal mengambil file dari drive.");
+        setBusy(false);
+      }
+    })();
+  }, [ready, driveFile, openFile]);
+
   const download = useCallback(async () => {
     const workbook = apiRef.current?.getActiveWorkbook();
     if (!workbook) return;
@@ -131,6 +157,11 @@ export default function ExcelEditor() {
   return (
     <div className="h-screen flex flex-col bg-macos-base text-macos-primary font-sans antialiased">
       <header className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-macos-separator">
+        {driveFile && (
+          <button className={btn} onClick={() => router.back()}>
+            ← Kembali
+          </button>
+        )}
         <h1 className="text-xl font-bold tracking-tight mr-2">Excel Editor</h1>
         <input
           ref={fileRef}

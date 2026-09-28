@@ -11,6 +11,8 @@ function formatSize(bytes: number) {
     if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
     return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
+const isSpreadsheet = (name: string) => /\.(xlsx|xls|csv)$/i.test(name);
+const isDocument = (name: string) => /\.(docx|doc)$/i.test(name);
 
 export default function FolderBrowser({
     root,
@@ -55,6 +57,7 @@ export default function FolderBrowser({
 
     const openFolder = (name: string) => setSubPath((p) => [...p, name]);
     const goToCrumb = (index: number) => setSubPath((p) => p.slice(0, index));
+    const goBack = () => setSubPath((p) => p.slice(0, -1));
 
     const createFolder = async () => {
         const folderName = prompt("Folder name?")?.trim();
@@ -123,11 +126,13 @@ export default function FolderBrowser({
 
     const downloadUrl = (name: string) =>
         `/api/drive/file?filePath=${encodeURIComponent(`${currentPath}/${name}`)}`;
+    const editorUrl = (name: string) => `/dashboard/excel?file=${encodeURIComponent(`${currentPath}/${name}`)}`;
+    const docsUrl = (name: string) => `/dashboard/word?file=${encodeURIComponent(`${currentPath}/${name}`)}`;
 
     // ---------- UI ----------
 
     return (
-        <div className="min-h-screen bg-[url(/wallpaper.jpg)] bg-white/50 bg-blend-overlay bg-cover text-macos-primary p-10 font-sans antialiased flex flex-col">
+        <div className="min-h-screen bg-[url(/wallpaper.jpg)] w-[100vw] bg-white/50 bg-blend-overlay bg-cover text-macos-primary p-10 font-sans antialiased flex flex-col">
             <header className="flex items-center justify-between mb-8 pb-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">{root}</h1>
@@ -145,8 +150,8 @@ export default function FolderBrowser({
                 </Link>
             </header>
 
-            <section className="w-full max-w-5xl mx-auto">
-                {/* Breadcrumbs */}
+            <section className="w-full p-4 rounded-md mx-1 bg-white">
+                {/* Breadcrumbs
                 <nav className="mb-4 flex flex-wrap items-center gap-1 text-sm">
                     <button
                         onClick={() => goToCrumb(0)}
@@ -166,17 +171,28 @@ export default function FolderBrowser({
                         </span>
                     ))}
                 </nav>
+ */}
 
                 {/* Toolbar */}
+
                 <div className="mb-4 flex items-center gap-3">
+                    {subPath.length > 0 && (
+                        <button
+                            onClick={goBack}
+                            disabled={busy}
+                            className="px-4 py-2 bg-white/60 backdrop-blur-md text-macos-primary text-sm font-medium rounded-md hover:bg-white/80 transition cursor-pointer shadow-md disabled:opacity-50"
+                        >
+                            ← Back
+                        </button>
+                    )}
                     <button
                         onClick={createFolder}
                         disabled={busy}
-                        className="px-4 py-2 bg-white/60 backdrop-blur-md text-macos-primary text-sm font-medium rounded-md hover:bg-white/80 transition cursor-pointer shadow-md disabled:opacity-50"
+                        className="px-4 py-2 bg-white/60 border border-black backdrop-blur-md text-macos-primary text-sm font-medium rounded-md hover:bg-white/80 transition cursor-pointer shadow-md disabled:opacity-50"
                     >
                         + New folder
                     </button>
-                    <label className="px-4 py-2 bg-macos-primary text-white text-sm font-medium rounded-md hover:bg-opacity-80 transition cursor-pointer shadow-md">
+                    <label className="px-4 py-2 bg-macos-primary border border-black text-macos-primary text-sm font-medium rounded-md hover:bg-opacity-80 transition cursor-pointer shadow-md">
                         Upload files
                         <input
                             type="file"
@@ -210,6 +226,10 @@ export default function FolderBrowser({
                                     >
                                         📁 {item.name}
                                     </button>
+                                ) : isDocument(item.name) ? (
+                                    <Link href={docsUrl(item.name)} className="font-medium hover:underline">
+                                        � {item.name}
+                                    </Link>
                                 ) : (
                                     <a href={downloadUrl(item.name)} className="font-medium hover:underline">
                                         📄 {item.name}
@@ -221,6 +241,17 @@ export default function FolderBrowser({
                                     <span className="text-macos-tertiary">
                                         {new Date(item.modifiedAt).toLocaleDateString()}
                                     </span>
+
+                                    {!item.isDir && (
+                                        <a
+                                            href={downloadUrl(item.name)}
+                                            download={item.name}
+                                            className="px-3 py-1 bg-white/60 backdrop-blur-md text-macos-primary text-xs font-medium rounded-md hover:bg-white/80 transition cursor-pointer shadow-sm"
+                                        >
+                                            Download
+                                        </a>
+                                    )}
+
                                     <button
                                         onClick={() => deleteItem(item)}
                                         className="px-3 py-1 bg-macos-red text-white text-xs font-medium rounded-md hover:bg-opacity-80 transition cursor-pointer shadow-sm"

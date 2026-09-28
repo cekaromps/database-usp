@@ -5,7 +5,8 @@ import Editor from "./Editor";
 export const metadata: Metadata = { title: "Word" };
 export const dynamic = "force-dynamic";
 
-export default async function WordPage() {
+export default async function WordPage({searchParams}: {searchParams: {file: string}}) {
   await requireUser();
-  return <Editor />;
+  const { file } = await searchParams;
+  return <Editor driveFile={file} />;
 }

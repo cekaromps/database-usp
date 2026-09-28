@@ -5,7 +5,8 @@ import ExcelEditor from "./Editor";
 export const metadata: Metadata = { title: "Excel Editor" };
 export const dynamic = "force-dynamic";
 
-export default async function ExcelPage() {
+export default async function ExcelPage({searchParams}: {searchParams: {file: string}}) {
   await requireUser();
-  return <ExcelEditor />;
+  const { file } = await searchParams;
+  return <ExcelEditor driveFile={file} />;
 }

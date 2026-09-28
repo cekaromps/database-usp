@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import "superdoc/style.css";
 
 // SuperDoc is browser-only, so it is imported inside handlers (never at module
@@ -10,8 +11,9 @@ type SuperDocInstance = import("superdoc").SuperDoc;
 const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-export default function Editor() {
+export default function Editor({driveFile}: {driveFile?: string}) {
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const pageRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<SuperDocInstance | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -80,6 +82,36 @@ export default function Editor() {
     [teardown],
   );
 
+  useEffect(() => {
+    if (!driveFile) return;
+    let cancelled = false;
+
+    (async () => {
+      setBusy(true);
+      setMessage("");
+      try {
+        const res = await fetch(
+          `/api/drive/file?filePath=${encodeURIComponent(driveFile)}`,
+        );
+        if (!res.ok) throw new Error("fetch failed");
+        const blob = await res.blob();
+        if (cancelled) return;
+        const name = driveFile.split("/").pop() || "dokumen.docx";
+        await openFile(new File([blob], name, { type: DOCX_MIME }));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) {
+          setMessage("Gagal mengambil file dari drive.");
+          setBusy(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [driveFile, openFile]);
+
   const download = useCallback(async () => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -105,6 +137,12 @@ export default function Editor() {
   return (
     <div className="h-screen flex flex-col bg-macos-base text-macos-primary font-sans antialiased">
       <header className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-macos-separator">
+
+        {driveFile && (
+          <button className={btn} onClick={() => router.back()}>
+            ← Kembali
+          </button>
+        )}
         <h1 className="text-xl font-bold tracking-tight mr-2">Word Editor</h1>
         <input
           ref={fileRef}
