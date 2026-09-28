@@ -45,7 +45,7 @@ export default async function DashboardPage() {
         </form>
       </header>
 
-      <section className="flex-1 w-full flex items-center justify-center">
+      <section className="flex-1 max-h-128 w-full flex items-center justify-center">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full max-w-5xl auto-rows-fr justify-items-center">
           {items.map((item) => (
             <MenuCard key={item.title} {...item} />

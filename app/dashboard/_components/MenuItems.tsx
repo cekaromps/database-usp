@@ -8,7 +8,7 @@ import { MenuItem } from "./MenuCard";
 
 export const menuItems: MenuItem[] = [
   {
-    href: "/dashboard/HRD",
+    href: "/dashboard/HR",
     icon: <IoPeopleOutline className="w-8 h-8 text-macos-primary" />,
     title: "HRD",
     description: "Manajemen karyawan, absensi, cuti, dan gaji.",

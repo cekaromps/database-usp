@@ -18,7 +18,6 @@ function getSafePath(relativePath: string | null): string {
   return finalPath;
 }
 
-// GET: List files in a folder
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
