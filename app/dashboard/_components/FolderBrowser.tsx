@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { projectUpdateInfoSubscribe } from "next/dist/build/swc/generated-native";
 
 type Item = { name: string; isDir: boolean; size: number; modifiedAt: string };
 
@@ -13,6 +14,7 @@ function formatSize(bytes: number) {
 }
 const isSpreadsheet = (name: string) => /\.(xlsx|xls|csv)$/i.test(name);
 const isDocument = (name: string) => /\.(docx|doc)$/i.test(name);
+const isPdf = (name: string) => /\.pdf$/i.test(name);
 
 export default function FolderBrowser({
   root,
@@ -196,6 +198,8 @@ export default function FolderBrowser({
     `/dashboard/excel?file=${encodeURIComponent(`${currentPath}/${name}`)}`;
   const docsUrl = (name: string) =>
     `/dashboard/word?file=${encodeURIComponent(`${currentPath}/${name}`)}`;
+  const pdfUrl = (name: string) =>
+    `/dashboard/pdf?file=${encodeURIComponent(`${currentPath}/${name}`)}`;
 
   // ---------- UI ----------
 
@@ -320,6 +324,13 @@ export default function FolderBrowser({
                     className="font-medium hover:underline"
                   >
                     {item.name}
+                  </Link>
+                ) : isPdf(item.name) ? (
+                  <Link
+                    href={pdfUrl(item.name)}
+                    className="font-medium hover:underline"
+                  >
+                    📕 {item.name}
                   </Link>
                 ) : (
                   <a
