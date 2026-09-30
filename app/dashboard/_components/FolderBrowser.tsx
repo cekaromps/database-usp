@@ -32,6 +32,7 @@ export default function FolderBrowser({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<String | null>(null);
 
   const currentPath = [root, ...subPath].join("/");
 
@@ -104,6 +105,66 @@ export default function FolderBrowser({
       alert(err.message);
     } finally {
       e.target.value = "";
+      setBusy(false);
+    }
+  };
+
+  const uploadFolder = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).filter(
+      (f) => f.name !== ".DS_Store" && f.name !== "Thumbs.db",
+    );
+    if (!files.length) return;
+    setBusy(true);
+    try {
+      // 1. Collect every unique directory in the selection, shallowest first
+      const dirs = new Set<string>();
+      for (const f of files) {
+        const parts = (f.webkitRelativePath || f.name).split("/").slice(0, -1);
+        for (let i = 1; i <= parts.length; i++) {
+          dirs.add(parts.slice(0, i).join("/"));
+        }
+      }
+      const sortedDirs = [...dirs].sort(
+        (a, b) => a.split("/").length - b.split("/").length,
+      );
+
+      // 2. Create the folder structure (errors ignored: folder may already exist)
+      for (const dir of sortedDirs) {
+        const parts = dir.split("/");
+        const folderName = parts.pop()!;
+        const parent = [currentPath, ...parts].join("/");
+        await fetch("/api/drive", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ currentPath: parent, folderName }),
+        }).catch(() => {});
+      }
+
+      // 3. Upload each file into its matching folder
+      let done = 0;
+      for (const file of files) {
+        const parts = (file.webkitRelativePath || file.name).split("/");
+        const filename = parts.pop()!;
+        const targetPath = [currentPath, ...parts].join("/");
+        setProgress(`Uploading ${++done} / ${files.length}`);
+
+        const res = await fetch(
+          `/api/drive/file?path=${encodeURIComponent(targetPath)}&filename=${encodeURIComponent(filename)}`,
+          { method: "PUT", body: file },
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(
+            data.error || `Upload failed: ${file.webkitRelativePath}`,
+          );
+        }
+      }
+      await load();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      e.target.value = "";
+      setProgress(null);
       setBusy(false);
     }
   };
@@ -209,6 +270,17 @@ export default function FolderBrowser({
               className="hidden"
             />
           </label>
+          <label className="px-4 py-2 bg-macos-primary border border-black text-macos-primary text-sm font-medium rounded-md hover:bg-opacity-80 transition cursor-pointer shadow-md">
+            Upload folder
+            <input
+              type="file"
+              multiple
+              onChange={uploadFolder}
+              disabled={busy}
+              className="hidden"
+              {...({ webkitdirectory: "", directory: "" } as any)}
+            />
+          </label>
           {busy && (
             <span className="text-sm text-macos-secondary">Working...</span>
           )}
@@ -241,6 +313,13 @@ export default function FolderBrowser({
                     className="font-medium hover:underline"
                   >
                     � {item.name}
+                  </Link>
+                ) : isSpreadsheet(item.name) ? (
+                  <Link
+                    href={editorUrl(item.name)}
+                    className="font-medium hover:underline"
+                  >
+                    {item.name}
                   </Link>
                 ) : (
                   <a
@@ -282,4 +361,3 @@ export default function FolderBrowser({
     </div>
   );
 }
-

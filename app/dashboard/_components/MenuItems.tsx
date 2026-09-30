@@ -3,6 +3,7 @@ import {
   IoStatsChartOutline,
   IoCubeOutline,
   IoSettingsOutline,
+  IoConstruct,
 } from "react-icons/io5";
 import { MenuItem } from "./MenuCard";
 
@@ -24,6 +25,12 @@ export const menuItems: MenuItem[] = [
     icon: <IoCubeOutline className="w-8 h-8 text-macos-primary" />,
     title: "Production",
     description: "Orders and Travels",
+  },
+  {
+    href: "/dashboard/design",
+    icon: <IoConstruct className="w-8 h-8 text-macos-primary" />,
+    title: "Design & Draft",
+    description: "Design and Draft Folder",
   },
 ];
 
