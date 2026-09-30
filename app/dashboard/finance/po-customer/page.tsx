@@ -12,7 +12,7 @@ export default async function Page() {
       root="Finance/PO-Customer"
       username={session.username}
       role={session.role}
-      backHref="/dashboard/Finance"
+      backHref="/dashboard/finance"
       backLabel="← Finance"
     />
   );
