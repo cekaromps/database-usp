@@ -23,7 +23,7 @@ export default async function DashboardPage() {
       <header className="flex items-center justify-between mb-8 pb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Dashboard Central
+            PT. UPS Dashboard
           </h1>
           <p className="text-sm text-macos-secondary mt-0.5">
             Masuk sebagai:{" "}
