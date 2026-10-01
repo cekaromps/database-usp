@@ -41,14 +41,16 @@ const sections: Section[] = [
 const card =
   "rounded-xl bg-white/60 backdrop-blur-md shadow-md p-5 transition hover:bg-white/80";
 
-export default async function FinancePage() {
+export default async function Page() {
   const session = await requireUser();
 
   return (
     <div className="min-h-screen bg-[url(/wallpaper.jpg)] bg-white/50 bg-blend-overlay bg-cover text-macos-primary p-10 font-sans antialiased flex flex-col">
       <header className="flex items-center justify-between mb-8 pb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Finance</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Design and Draft
+          </h1>
           <p className="text-sm text-macos-secondary mt-0.5">
             Masuk sebagai:{" "}
             <span className="font-semibold text-macos-primary">
