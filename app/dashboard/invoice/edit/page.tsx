@@ -217,6 +217,19 @@ export default async function EditInvoicePage({ searchParams }: EditPageProps) {
               />
             </div>
 
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                Remark
+              </label>
+              <textarea
+                name="remark"
+                rows={4}
+                defaultValue={invoice.remark === "-" ? "" : invoice.remark}
+                placeholder="Additional notes..."
+                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue"
+              />
+            </div>
+
             {/* SEKSI SPESIFIKASI BARANG DAN HARGA */}
             <div className="border-t border-macos-separator/40 pt-4">
               <h3 className="text-sm font-semibold mb-3 text-macos-primary">
