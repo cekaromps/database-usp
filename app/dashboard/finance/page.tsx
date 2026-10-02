@@ -34,7 +34,7 @@ const sections: Section[] = [
     code: "e",
     title: "Kwitansi",
     icon: "💵",
-    href: "/dashboard/finance/kwitansi",
+    href: "/dashboard/accounting",
   },
   {
     code: "d",
