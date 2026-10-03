@@ -13,8 +13,8 @@ type Section = {
   code: string;
   title: string;
   icon: string;
-  href?: string; // single destination
-  children?: { title: string; href: string }[]; // or several
+  href?: string;
+  children?: { title: string; href: string }[];
 };
 
 const sections: Section[] = [
@@ -26,13 +26,19 @@ const sections: Section[] = [
   },
   {
     code: "b",
-    title: "Document PO Customer",
+    title: "Customer PO",
     icon: "📄",
-    href: "/dashboard/finance/po-customer",
+    children: [
+      { title: "Customer Po", href: "/dashboard/finance/po-customer" },
+      {
+        title: "Job Despact / PO Status",
+        href: "/dashboard/finance/po-status",
+      },
+    ],
   },
   {
     code: "e",
-    title: "Kwitansi",
+    title: "Accounting",
     icon: "💵",
     href: "/dashboard/accounting",
   },
