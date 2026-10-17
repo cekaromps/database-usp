@@ -31,9 +31,13 @@ const sections: Section[] = [
     children: [
       { title: "Customer Po", href: "/dashboard/finance/po-customer" },
       {
-        title: "Job Despact / PO Status",
+        title: "PO Status",
         href: "/dashboard/finance/po-status",
       },
+      {
+        title: "Job Despact",
+        href: "/dashboard/finance/job-despact-list"
+      }
     ],
   },
   {

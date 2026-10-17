@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
-import { createInvoiceWithItemsAction } from "@/app/actions/record";
+import { STATUS_LABELS, STATUS_VALUES, type DespactStatus } from "@/lib/despact-status";
+import { createDespactAction } from "@/app/actions/record";
 
 interface ItemRow {
   id: number;
   description: string;
   qty: number;
   amountIdr: number;
-  materials: string[]; // ← was: material: string
-  processes: string[];
   unit: "pcs" | "unit" | "set";
+  status: DespactStatus;
 }
 
 interface Customer {
@@ -20,105 +20,35 @@ interface Customer {
   address: string;
 }
 
-const AVAILABLE_PROCESSES = [
-  "Machining",
-  "Milling",
-  "Turning",
-  "Grinding",
-  "CNC",
-  "EDM",
-  "Wire Cut",
-  "Hardening",
-  "Plating",
-  "Polish",
-  "Chrome",
-  "Blackening",
-  "Fabricate",
-  "Re-wending",
-  "Overhaul",
-];
-
-const AVAILABLE_MATERIAL = [
-  "STD PART",
-  "MILD STEEL",
-  "SKD 11/XW 41",
-  "SKD 11/XW 41 (JAPAN)",
-  "SKD 61",
-  "DF2",
-  "SUJ 11",
-  "STAVAX",
-  "NAK 80",
-  "440C",
-  "Polyurethane (PU) ",
-  "Steel Carbon",
-  "AISI 4140",
-  "S50C / S45C",
-  "ALUMINIUM",
-  "BRASS",
-  "COPPER",
-  "ORANGE BAKELITE",
-  "BLACK BAKELITE",
-  "WHITE DERLIN",
-  "BLACK DERLIN",
-  "STAINLESS STEEL",
-  "GALVANIS",
-  "TEFLON",
-  "PVC",
-];
-
 export default function DespactForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-
-  // State Input Metadata Utama
   const [customerName, setCustomerName] = useState("");
-  const [quotationNumber, setQuotationNumber] = useState("Q000-2605-001");
-  const [discount, setDiscount] = useState(0);
-
-  // 🌟 Daftar Customer sekarang datang dari database (tabel Customer), bukan
-  // dari object hardcoded lagi. Diambil sekali saat form dibuka.
   const [customers, setCustomers] = useState<Customer[]>([]);
-
-  // State khusus Autocomplete Customer
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const autocompleteRef = useRef<HTMLDivElement>(null);
-
-  // 🌟 State untuk modal "Tambah Customer Baru"
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [newCustomerCode, setNewCustomerCode] = useState("");
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerAddress, setNewCustomerAddress] = useState("");
+  const [poDate, setPoDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [customerFormError, setCustomerFormError] = useState<string | null>(
     null,
   );
   const [isSavingCustomer, setIsSavingCustomer] = useState(false);
-
-  // State khusus Autocomplete Material (per baris item) — now tag-based
-  const [materialOpenId, setMaterialOpenId] = useState<number | null>(null);
-  const [materialInputs, setMaterialInputs] = useState<Record<number, string>>(
-    {},
-  );
-
-  // State khusus Autocomplete + Tag Input Proses Manufaktur (per baris item)
-  const [processOpenId, setProcessOpenId] = useState<number | null>(null);
-  const [processInputs, setProcessInputs] = useState<Record<number, string>>(
-    {},
-  );
-
   const [items, setItems] = useState<ItemRow[]>([
     {
       id: Date.now(),
       description: "",
       qty: 1,
       amountIdr: 0,
-      processes: [],
-      materials: [], // ← was: material: ""
       unit: "pcs",
+      status: "ON_PROCESS",
     },
   ]);
 
-  // 🌟 Ambil daftar customer dari database saat form pertama kali dibuka
   useEffect(() => {
     fetch("/api/customers")
       .then((res) => res.json())
@@ -129,120 +59,6 @@ export default function DespactForm() {
       });
   }, []);
 
-  // ====== HELPER: AUTOCOMPLETE MATERIAL (tag-based, bebas ketik) ======
-  const getMaterialSuggestions = (itemId: number, value: string) => {
-    const item = items.find((i) => i.id === itemId);
-    const already = item ? item.materials.map((m) => m.toLowerCase()) : [];
-    const pool = AVAILABLE_MATERIAL.filter(
-      (m) => !already.includes(m.toLowerCase()),
-    );
-    const clean = value.toUpperCase().trim();
-    if (!clean) return pool;
-    return pool.filter((m) => m.toUpperCase().includes(clean));
-  };
-
-  const handleMaterialInputChange = (itemId: number, value: string) => {
-    setMaterialInputs((prev) => ({ ...prev, [itemId]: value }));
-    setMaterialOpenId(itemId);
-  };
-
-  const addMaterialTag = (itemId: number, rawValue: string) => {
-    const trimmed = rawValue.trim();
-    if (!trimmed) {
-      setMaterialOpenId(null);
-      return;
-    }
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== itemId) return item;
-        const exists = item.materials.some(
-          (m) => m.toLowerCase() === trimmed.toLowerCase(),
-        );
-        if (exists) return item;
-        return { ...item, materials: [...item.materials, trimmed] };
-      }),
-    );
-    setMaterialInputs((prev) => ({ ...prev, [itemId]: "" }));
-    setMaterialOpenId(null);
-  };
-
-  const removeMaterialTag = (itemId: number, material: string) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              materials: item.materials.filter((m) => m !== material),
-            }
-          : item,
-      ),
-    );
-  };
-
-  // ====== HELPER: AUTOCOMPLETE + TAG PROSES (bebas ketik, tidak wajib dari list) ======
-  const getProcessSuggestions = (itemId: number, value: string) => {
-    const item = items.find((i) => i.id === itemId);
-    const already = item ? item.processes.map((p) => p.toLowerCase()) : [];
-    const pool = AVAILABLE_PROCESSES.filter(
-      (p) => !already.includes(p.toLowerCase()),
-    );
-    const clean = value.toUpperCase().trim();
-    if (!clean) return pool;
-    return pool.filter((p) => p.toUpperCase().includes(clean));
-  };
-
-  const handleProcessInputChange = (itemId: number, value: string) => {
-    setProcessInputs((prev) => ({ ...prev, [itemId]: value }));
-    setProcessOpenId(itemId);
-  };
-
-  const addProcessTag = (itemId: number, rawValue: string) => {
-    const trimmed = rawValue.trim();
-    if (!trimmed) {
-      setProcessOpenId(null);
-      return;
-    }
-    setItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== itemId) return item;
-        const exists = item.processes.some(
-          (p) => p.toLowerCase() === trimmed.toLowerCase(),
-        );
-        if (exists) return item;
-        return { ...item, processes: [...item.processes, trimmed] };
-      }),
-    );
-    setProcessInputs((prev) => ({ ...prev, [itemId]: "" }));
-    setProcessOpenId(null);
-  };
-
-  const removeProcessTag = (itemId: number, process: string) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              processes: item.processes.filter((p) => p !== process),
-            }
-          : item,
-      ),
-    );
-  };
-
-  // Menutup list rekomendasi otomatis jika mengklik area luar form
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        autocompleteRef.current &&
-        !autocompleteRef.current.contains(event.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const getDatePrefix = () => {
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
@@ -250,27 +66,9 @@ export default function DespactForm() {
     return `${yy}${mm}`;
   };
 
-  // 🌟 Logika inti pemilihan customer (dipakai baik saat klik saran
-  // autocomplete maupun langsung setelah berhasil membuat customer baru).
   const applyCustomerSelection = (name: string, code: string) => {
     setCustomerName(name);
     setShowSuggestions(false);
-
-    const companyCode = (code || "000").padStart(3, "0");
-
-    fetch(
-      `/api/next-subitem?customer=${encodeURIComponent(name)}&t=${Date.now()}`,
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        const dynamicSubItem = data.sequence || "001";
-        setQuotationNumber(
-          `Q${companyCode}-${getDatePrefix()}-${dynamicSubItem}`,
-        );
-      })
-      .catch(() => {
-        setQuotationNumber(`Q${companyCode}-${getDatePrefix()}-001`);
-      });
   };
 
   const handleInputChange = (value: string) => {
@@ -287,10 +85,6 @@ export default function DespactForm() {
     } else {
       setSuggestions([]);
     }
-
-    const matched = customers.find((c) => c.name.toUpperCase() === cleanInput);
-    const companyCode = (matched?.code ?? "000").padStart(3, "0");
-    setQuotationNumber(`Q${companyCode}-${getDatePrefix()}-001`);
   };
 
   const handleSelectSuggestion = (name: string) => {
@@ -300,8 +94,6 @@ export default function DespactForm() {
     applyCustomerSelection(name, matched?.code ?? "000");
   };
 
-  // 🌟 Simpan customer baru (code, name, address) lewat /api/customers,
-  // lalu langsung pilih customer tersebut di form quotation.
   const handleCreateCustomer = async () => {
     setCustomerFormError(null);
 
@@ -333,7 +125,6 @@ export default function DespactForm() {
         [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
       );
 
-      // Langsung pilih customer baru ini supaya quotation number ikut ter-generate
       applyCustomerSelection(created.name, created.code);
 
       setNewCustomerCode("");
@@ -358,9 +149,8 @@ export default function DespactForm() {
         description: "",
         qty: 1,
         amountIdr: 0,
-        processes: [],
-        materials: [],
         unit: "pcs",
+        status: "ON_PROCESS",
       },
     ]);
   };
@@ -397,10 +187,9 @@ export default function DespactForm() {
 
     const formData = new FormData(e.currentTarget);
     formData.append("itemsJson", JSON.stringify(items));
-    formData.append("discount", String(discount));
 
     startTransition(async () => {
-      const errorMsg = await createInvoiceWithItemsAction(formData);
+      const errorMsg = await createDespactAction(formData);
       if (errorMsg) {
         setError(errorMsg);
       }
@@ -411,8 +200,7 @@ export default function DespactForm() {
     (sum, item) => sum + item.amountIdr * item.qty,
     0,
   );
-  const discountAmount = subtotal * (discount / 100);
-  const grandTotal = subtotal - discountAmount;
+  const grandTotal = subtotal;
 
   const formatIDR = (val: number) =>
     new Intl.NumberFormat("id-ID", {
@@ -440,17 +228,6 @@ export default function DespactForm() {
         </div>
       )}
 
-      {/* MONITORING SYNC BAR */}
-      <div className="text-[11px] font-mono bg-macos-tertiary border border-macos-separator p-2 rounded-md text-macos-secondary flex items-center justify-between">
-        <span>Database Sync Monitor :</span>
-        <span className="text-macos-blue font-bold">
-          {customerName
-            ? `Membaca riwayat "${customerName}"...`
-            : "Menunggu pilihan Customer..."}
-        </span>
-      </div>
-
-      {/* GENERAL DATA */}
       <div className="bg-macos-popover border border-macos-separator p-6 rounded-xl shadow-2xl space-y-4">
         <h3 className="text-lg font-semibold text-macos-primary border-b border-macos-separator pb-2 mb-2">
           General Information
@@ -508,15 +285,13 @@ export default function DespactForm() {
 
           <div>
             <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-              Registration Number (Auto-Generated) *
+              Registration Number
             </label>
             <input
-              name="quotationNumber"
+              name="registrationNumber"
               type="text"
               required
-              readOnly
-              value={quotationNumber}
-              className="w-full bg-macos-separator/30 border border-macos-separator text-macos-secondary font-mono rounded-md p-2 text-sm select-none cursor-not-allowed font-semibold opacity-70"
+              className="w-full bg-macos-separator/30 border border-macos-separator text-macos-primary font-mono rounded-md p-2 text-sm select-none font-semibold opacity-70"
             />
           </div>
 
@@ -535,13 +310,12 @@ export default function DespactForm() {
             />
           </div>
 
-          {/* CC */}
           <div>
             <label className="block text-xs font-medium text-macos-secondary mb-1.5">
               Short Description
             </label>
             <input
-              name="cc"
+              name="shortDescription"
               type="text"
               disabled={isPending}
               placeholder="-"
@@ -549,72 +323,44 @@ export default function DespactForm() {
             />
           </div>
 
-          {/* TERM */}
-          <div>
-            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-              Qty *
-            </label>
-            <input
-              name="term"
-              type="text"
-              required
-              disabled={isPending}
-              placeholder="30 Days"
-              className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue"
-            />
-          </div>
-
-          {/* VALIDITY */}
           <div>
             <label className="block text-xs font-medium text-macos-secondary mb-1.5">
               PO Date *
             </label>
             <input
-              name="validity"
-              type="text"
+              name="poDate"
+              type="date"
               required
               disabled={isPending}
-              placeholder="1 Week"
+              value={poDate}
+              max={dueDate || undefined}
+              onChange={(e)=> setPoDate(e.target.value)}
               className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue"
             />
           </div>
 
-          {/* LEAD TIME */}
-          <div>
-            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-              Status *
-            </label>
-            <input
-              name="leadTime"
-              type="text"
-              required
-              disabled={isPending}
-              placeholder="Besaide schedule"
-              className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue"
-            />
-          </div>
-
-          {/* DATE */}
           <div>
             <label className="block text-xs font-medium text-macos-secondary mb-1.5">
               Due Date *
             </label>
             <input
-              name="dateDelivery"
+              name="dueDate"
               type="date"
               required
               disabled={isPending}
+              value={dueDate}
+              min={poDate || undefined}
+              onChange={(e) => setDueDate(e.target.value)}
               className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition scheme-dark"
             />
           </div>
         </div>
       </div>
 
-      {/* ITEMS DYNAMIC SECTION */}
       <div className="bg-macos-popover border border-macos-separator p-6 rounded-xl shadow-2xl space-y-4">
         <div className="flex items-center justify-between border-b border-macos-separator pb-2 mb-2">
           <h3 className="text-lg font-semibold text-macos-primary">
-            Quotation Items List
+            Job Despact Items
           </h3>
           <button
             type="button"
@@ -627,41 +373,21 @@ export default function DespactForm() {
         </div>
         <div className="space-y-4">
           {items.map((item, index) => {
-            const materialSearch = materialInputs[item.id] || "";
-            const materialSuggestions = getMaterialSuggestions(
-              item.id,
-              materialSearch,
-            );
-            const materialExactMatch = AVAILABLE_MATERIAL.some(
-              (m) => m.toLowerCase() === materialSearch.trim().toLowerCase(),
-            );
-
-            const processSearch = processInputs[item.id] || "";
-            const processSuggestions = getProcessSuggestions(
-              item.id,
-              processSearch,
-            );
-            const processExactMatch = AVAILABLE_PROCESSES.some(
-              (p) => p.toLowerCase() === processSearch.trim().toLowerCase(),
-            );
-
             return (
               <div
                 key={item.id}
                 className="bg-macos-base/30 p-5 border border-macos-separator/40 rounded-xl space-y-4 animate-scale-up"
               >
-                {/* BARIS ATAS: Description + Qty + Amount */}
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
-                  {/* Kolom Deskripsi Barang */}
                   <div className="sm:col-span-6 w-full">
                     <label className="block text-xs font-medium text-macos-secondary mb-1.5">
                       Item Description #{index + 1} *
                     </label>
-                    <textarea
+                    <input
+                      type="text"
                       required
                       value={item.description}
                       disabled={isPending}
-                      rows={3}
                       suppressHydrationWarning
                       onChange={(e) =>
                         updateItemField(item.id, "description", e.target.value)
@@ -712,6 +438,42 @@ export default function DespactForm() {
                         {item.unit ?? "pcs"}
                       </button>
                     </div>
+
+                  </div>
+                  {/* Status per item */}
+                  <div className="sm:col-span-3 w-full">
+                    <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                      Status *
+                    </label>
+                    <div className="relative">
+                      <select
+                        required
+                        disabled={isPending}
+                        value={item.status}
+                        onChange={(e) =>
+                          updateItemField(item.id, "status", e.target.value as DespactStatus)
+                        }
+                        className="w-full appearance-none bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 pr-8 text-sm focus:outline-none focus:border-macos-blue transition cursor-pointer scheme-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {STATUS_VALUES.map((s) => (
+                          <option key={s} value={s}>
+                            {STATUS_LABELS[s]}
+                          </option>
+                        ))}
+                      </select>
+                      <svg
+                        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-macos-secondary"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
                   </div>
 
                   {/* Kolom Harga Nominal */}
@@ -754,174 +516,6 @@ export default function DespactForm() {
                     )}
                   </div>
                 </div>
-
-                {/* 🌟 MATERIAL — TAG INPUT + AUTOCOMPLETE (sama persis seperti Processes) */}
-                <div className="border-t border-macos-separator/30 pt-3.5 relative">
-                  <span className="block text-[11px] font-bold text-macos-secondary mb-2.5 uppercase tracking-wider">
-                    Material Tipe :
-                  </span>
-
-                  {/* Tag chip material yang sudah ditambahkan */}
-                  {item.materials.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2.5">
-                      {item.materials.map((mat) => (
-                        <span
-                          key={mat}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-macos-green/10 border border-macos-green/30 text-macos-green text-xs font-semibold"
-                        >
-                          {mat}
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() => removeMaterialTag(item.id, mat)}
-                            className="hover:text-macos-red transition cursor-pointer leading-none"
-                            title={`Hapus ${mat}`}
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <input
-                    type="text"
-                    disabled={isPending}
-                    autoComplete="off"
-                    value={materialSearch}
-                    placeholder="Ketik material (cth: MILD STEEL) atau tulis material baru, lalu Enter..."
-                    onFocus={() => setMaterialOpenId(item.id)}
-                    onChange={(e) =>
-                      handleMaterialInputChange(item.id, e.target.value)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addMaterialTag(item.id, materialSearch);
-                      }
-                    }}
-                    onBlur={() =>
-                      setMaterialOpenId((curr) =>
-                        curr === item.id ? null : curr,
-                      )
-                    }
-                    className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
-                  />
-
-                  {materialOpenId === item.id &&
-                    (materialSuggestions.length > 0 ||
-                      (materialSearch.trim() && !materialExactMatch)) && (
-                      <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-macos-popover border border-macos-separator rounded-lg shadow-2xl z-50 py-1 divide-y divide-macos-separator/40 animate-scale-up">
-                        {materialSuggestions.map((mat) => (
-                          <button
-                            key={mat}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => addMaterialTag(item.id, mat)}
-                            className="w-full text-left px-3 py-2 text-xs text-macos-primary hover:bg-macos-blue hover:text-white transition cursor-pointer font-medium border-none bg-transparent"
-                          >
-                            ⚙️ {mat}
-                          </button>
-                        ))}
-                        {materialSearch.trim() && !materialExactMatch && (
-                          <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() =>
-                              addMaterialTag(item.id, materialSearch)
-                            }
-                            className="w-full text-left px-3 py-2 text-xs text-macos-blue hover:bg-macos-blue hover:text-white transition cursor-pointer font-bold border-none bg-transparent"
-                          >
-                            ＋ Tambah material baru "{materialSearch.trim()}"
-                          </button>
-                        )}
-                      </div>
-                    )}
-                </div>
-
-                {/* 🌟 PROSES MANUFAKTUR — TAG INPUT + AUTOCOMPLETE */}
-                <div className="border-t border-macos-separator/30 pt-3.5 relative">
-                  <span className="block text-[11px] font-bold text-macos-secondary mb-2.5 uppercase tracking-wider">
-                    Required Machining Processes :
-                  </span>
-
-                  {item.processes.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2.5">
-                      {item.processes.map((process) => (
-                        <span
-                          key={process}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-macos-blue/10 border border-macos-blue/30 text-macos-blue text-xs font-semibold"
-                        >
-                          {process}
-                          <button
-                            type="button"
-                            disabled={isPending}
-                            onClick={() => removeProcessTag(item.id, process)}
-                            className="hover:text-macos-red transition cursor-pointer leading-none"
-                            title={`Hapus ${process}`}
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <input
-                    type="text"
-                    disabled={isPending}
-                    autoComplete="off"
-                    value={processSearch}
-                    placeholder="Ketik proses (cth: Machining) atau tulis proses baru, lalu Enter..."
-                    onFocus={() => setProcessOpenId(item.id)}
-                    onChange={(e) =>
-                      handleProcessInputChange(item.id, e.target.value)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addProcessTag(item.id, processSearch);
-                      }
-                    }}
-                    onBlur={() =>
-                      setProcessOpenId((curr) =>
-                        curr === item.id ? null : curr,
-                      )
-                    }
-                    className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
-                  />
-
-                  {processOpenId === item.id &&
-                    (processSuggestions.length > 0 ||
-                      (processSearch.trim() && !processExactMatch)) && (
-                      <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-macos-popover border border-macos-separator rounded-lg shadow-2xl z-50 py-1 divide-y divide-macos-separator/40 animate-scale-up">
-                        {processSuggestions.map((process) => (
-                          <button
-                            key={process}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => addProcessTag(item.id, process)}
-                            className="w-full text-left px-3 py-2 text-xs text-macos-primary hover:bg-macos-blue hover:text-white transition cursor-pointer font-medium border-none bg-transparent"
-                          >
-                            🔧 {process}
-                          </button>
-                        ))}
-                        {processSearch.trim() && !processExactMatch && (
-                          <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() =>
-                              addProcessTag(item.id, processSearch)
-                            }
-                            className="w-full text-left px-3 py-2 text-xs text-macos-blue hover:bg-macos-blue hover:text-white transition cursor-pointer font-bold border-none bg-transparent"
-                          >
-                            ＋ Tambah proses baru "{processSearch.trim()}"
-                          </button>
-                        )}
-                      </div>
-                    )}
-                </div>
-
                 {items.length > 1 && (
                   <button
                     type="button"
@@ -939,42 +533,10 @@ export default function DespactForm() {
       </div>
 
       <div className="bg-macos-popover border border-macos-separator p-6 rounded-xl shadow-2xl space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-            Discount
-          </label>
-          <input
-            name="discount"
-            type="number"
-            min="0"
-            max="100"
-            value={discount}
-            disabled={isPending}
-            onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-            placeholder="5..."
-            className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-            Global Remark (Catatan Tambahan)
-          </label>
-          <textarea
-            name="remark"
-            rows={4}
-            disabled={isPending}
-            placeholder="Prices are valid 1 month after offer is sent"
-            className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition"
-          />
-        </div>
         <div className="bg-macos-base/30 border border-macos-separator/40 rounded-xl p-4 space-y-2 text-sm font-mono">
           <div className="flex justify-between text-macos-secondary">
             <span>Subtotal</span>
             <span>IDR {formatIDR(subtotal)}</span>
-          </div>
-          <div className="flex justify-between text-macos-red">
-            <span>Discount ({discount}%)</span>
-            <span>- IDR {formatIDR(discountAmount)}</span>
           </div>
           <div className="flex justify-between text-macos-primary font-bold border-t border-macos-separator pt-2">
             <span>Grand Total</span>
@@ -992,7 +554,6 @@ export default function DespactForm() {
         </div>
       </div>
 
-      {/* 🌟 MODAL: TAMBAH CUSTOMER BARU (Code, Name, Address) */}
       {showCustomerModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
           <div className="bg-macos-popover border border-macos-separator rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 animate-scale-up">

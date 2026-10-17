@@ -245,4 +245,37 @@ model Customer {
   name        String
   address     String
   createdAt   DateTime @default(now())
+  despacts    Despact[]
+}
+
+enum DespactStatus {
+  ON_PROCESS
+  READY_DELIVERY
+  DELIVERY
+  CLOSE
+}
+
+model Despact {
+  id                 Int           @id @default(autoincrement())
+  registrationNumber String        @unique   
+  customerId         Int
+  customer           Customer      @relation(fields: [customerId], references: [id])
+  attn               String
+  shortDescription   String        @default("-")  
+  poDate             DateTime                        
+  dueDate            DateTime                      
+  totalIdr           Decimal       @db.Decimal(18, 2)
+  items              DespactItem[]
+  createdAt          DateTime      @default(now())
+}
+
+model DespactItem {
+  id          Int      @id @default(autoincrement())
+  despactId   Int
+  despact     Despact  @relation(fields: [despactId], references: [id], onDelete: Cascade)
+  description String
+  qty         Int
+  unit        String   @default("pcs")  
+  amountIdr   Decimal  @db.Decimal(18, 2)
+  status      DespactStatus @default(ON_PROCESS)
 }

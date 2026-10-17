@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as XLSX from "xlsx";
+import { STATUS_VALUES, type DespactStatus } from "@/lib/despact-status";
 
 export async function createRecordAction(formData: FormData) {
   await assertSection("finance")
@@ -785,4 +786,78 @@ export async function getNextSubItemNumber(customerName: string) {
     console.error("Error counting sub-items:", error);
     return "001"; // Fallback aman
   }
+}
+
+export async function createDespactAction(
+  formData: FormData,
+): Promise<string | void> {
+  await assertSection("finance");
+  const customerName = String(formData.get("customer") ?? "").trim();
+
+  let items: {
+    description: string;
+    qty: number;
+    amountIdr: number;
+    unit: "pcs" | "unit" | "set";
+    status: DespactStatus;
+  }[];
+  try {
+    items = JSON.parse(String(formData.get("itemsJson") ?? "[]"));
+  } catch {
+    return "Data item tidak valid.";
+  }
+
+  if (!Array.isArray(items) || items.length === 0) return "Min 1 Item.";
+
+  for (const i of items) {
+    if (!i.description?.trim()) return "Deskripsi item wajib diisi.";
+    if (!Number.isInteger(i.qty) || i.qty <= 0) return "Qty item tidak valid.";
+    if (!(i.amountIdr > 0)) return "Amount item tidak valid.";
+    if (!["pcs", "unit", "set"].includes(i.unit)) return "Unit tidak valid.";
+    if (!STATUS_VALUES.includes(i.status)) return "Status item tidak valid.";
+  }
+
+  const customer = await prisma.customer.findFirst({
+    where: { name: { equals: customerName, mode: "insensitive" } },
+  });
+  if (!customer) return "Customer tidak ditemukan.";
+
+  const totalIdr = items.reduce((s, i) => s + i.amountIdr * i.qty, 0);
+
+  const poDate = new Date(String(formData.get("poDate")));
+  const dueDate = new Date(String(formData.get("dueDate")));
+  if (isNaN(poDate.getTime()) || isNaN(dueDate.getTime())) {
+    return "Tanggal tidak valid.";
+  }
+  if (dueDate < poDate) {
+    return "Due Date tidak boleh sebelum PO Date.";
+  }
+
+  try {
+    await prisma.despact.create({
+      data: {
+        registrationNumber: String(formData.get("registrationNumber")),
+        customerId: customer.id,
+        attn: String(formData.get("attn")),
+        shortDescription: String(formData.get("shortDescription") || "-"),
+        poDate,
+        dueDate,
+        totalIdr,
+        items: {
+          create: items.map((i) => ({
+            description: i.description.trim(),
+            qty: i.qty,
+            unit: i.unit,
+            amountIdr: i.amountIdr,
+            status: i.status,
+          })),
+        },
+      },
+    });
+  } catch (e) {
+    console.error(e);
+    return "Gagal menyimpan Despact (nomor registrasi mungkin sudah ada).";
+  }
+
+  redirect("/dashboard/finance/job-despact-list");
 }
