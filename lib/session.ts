@@ -12,6 +12,9 @@ export type SessionPayload = {
   username: string
   role: Role
   isActive: boolean
+  /** null = no access group (all sections); array = restricted. Used by proxy.ts only as a fast first gate;
+   *  server code re-reads the database via lib/rbac.ts so edits to a group apply immediately. */
+  sections: string[] | null
 }
 
 export async function encrypt(payload: SessionPayload) {
@@ -38,6 +41,7 @@ export async function createSession(user: {
   username: string
   role: Role
   isActive: boolean
+  group?: { sections: string[] } | null
 }) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Expires in 7 days
   const session = await encrypt({
@@ -45,6 +49,7 @@ export async function createSession(user: {
     username: user.username,
     role: user.role,
     isActive: user.isActive,
+    sections: user.group ? user.group.sections : null,
   })
 
   const cookieStore = await cookies()

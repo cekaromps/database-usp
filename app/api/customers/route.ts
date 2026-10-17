@@ -1,7 +1,9 @@
+import { checkSection } from "@/lib/rbac"
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
+  if (!(await checkSection("finance"))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const customers = await prisma.customer.findMany({
       orderBy: { name: "asc" },
@@ -17,6 +19,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await checkSection("finance"))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const body = await req.json();
 

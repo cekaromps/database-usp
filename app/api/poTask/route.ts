@@ -1,8 +1,10 @@
+import { checkSection } from "@/lib/rbac";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { TaskStage } from "@/lib/generated/prisma/enums";
 
 export const POST = async (request: Request) => {
+  if (!(await checkSection(["production", "finance"]))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const body = await request.json();
     const { poNumber, description, estimatedDelivery, items } = body;
@@ -52,6 +54,7 @@ export const POST = async (request: Request) => {
 };
 
 export const GET = async (request: Request) => {
+  if (!(await checkSection(["production", "finance"]))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const { searchParams } = new URL(request.url);
     const stage = (searchParams.get("stage") as TaskStage) || null;

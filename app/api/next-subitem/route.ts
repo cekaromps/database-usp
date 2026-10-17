@@ -1,9 +1,11 @@
+import { checkSection } from "@/lib/rbac"
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  if (!(await checkSection("finance"))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const { searchParams } = new URL(req.url);
     const customer = searchParams.get("customer") || "";

@@ -1,3 +1,4 @@
+import { checkSection } from "@/lib/rbac"
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isValidEcomCategory } from "@/lib/ecomCategories";
@@ -34,6 +35,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!(await checkSection("production"))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const { id } = await params;
     const item = await prisma.ecom.findUnique({ where: { id } });
@@ -53,6 +55,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!(await checkSection("production"))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const { id } = await params;
     const contentType = request.headers.get("content-type") || "";
@@ -114,6 +117,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!(await checkSection("production"))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const { id } = await params;
     const existing = await prisma.ecom.findUnique({ where: { id } });

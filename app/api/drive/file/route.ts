@@ -1,3 +1,4 @@
+import { checkDrivePath } from '@/lib/rbac';
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
@@ -13,6 +14,7 @@ function getSafePath(relativePath: string | null): string {
 }
 
 export async function GET(request: NextRequest) {
+  if (!(await checkDrivePath(new URL(request.url).searchParams.get('filePath')))) return Response.json({ error: 'Forbidden' }, { status: 403 });
   try {
     const { searchParams } = new URL(request.url);
     const filePath = searchParams.get('filePath');
@@ -38,6 +40,13 @@ export async function GET(request: NextRequest) {
 
 // PUT: Stream upload directly to Linux storage
 export async function PUT(request: NextRequest) {
+  {
+    // Check the FINAL target (folder + filename), otherwise filename="../../HRD/x" escapes the checked folder.
+    const q = new URL(request.url).searchParams;
+    if (!(await checkDrivePath(path.join(q.get('path') || '', q.get('filename') || '')))) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
   try {
     const { searchParams } = new URL(request.url);
     const uploadFolder = searchParams.get('path') || '';
@@ -69,6 +78,7 @@ export async function PUT(request: NextRequest) {
 
 // DELETE: Safely remove a file or directory from Linux storage
 export async function DELETE(request: NextRequest) {
+  if (!(await checkDrivePath(new URL(request.url).searchParams.get('filePath')))) return Response.json({ error: 'Forbidden' }, { status: 403 });
   try {
     const { searchParams } = new URL(request.url);
     const filePath = searchParams.get('filePath');

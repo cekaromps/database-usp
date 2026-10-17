@@ -3,7 +3,13 @@
 import { useRef, useState, useTransition } from "react"
 import { createUserAction } from "../_actions"
 
-export function CreateUserForm({ canAssignAdmin }: { canAssignAdmin: boolean }) {
+export function CreateUserForm({
+  canAssignAdmin,
+  groups,
+}: {
+  canAssignAdmin: boolean
+  groups: { id: string; name: string }[]
+}) {
   const formRef = useRef<HTMLFormElement>(null)
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null)
@@ -44,7 +50,7 @@ export function CreateUserForm({ canAssignAdmin }: { canAssignAdmin: boolean }) 
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div>
           <label className="block text-xs font-medium text-macos-secondary mb-1.5">Username</label>
           <input
@@ -85,6 +91,23 @@ export function CreateUserForm({ canAssignAdmin }: { canAssignAdmin: boolean }) 
               Hanya superadmin yang bisa membuat akun admin.
             </p>
           )}
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-macos-secondary mb-1.5">Tipe Akun</label>
+          <select
+            name="groupId"
+            disabled={isPending}
+            defaultValue=""
+            className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue focus:ring-1 focus:ring-macos-blue transition disabled:opacity-50"
+          >
+            <option value="">Semua section (tanpa batasan)</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-[10px] text-macos-tertiary mt-1">Diabaikan untuk Superadmin.</p>
         </div>
       </div>
 

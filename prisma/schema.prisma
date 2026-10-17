@@ -13,16 +13,28 @@ enum Role {
   USER
 }
 
+model AccessGroup {
+  id        String   @id @default(cuid())
+  name      String   @unique         
+  sections  String[] @default([])    
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+}
+
 model User {
   id        String   @id @default(cuid())
   username  String   @unique
   password  String
   role      Role     @default(USER)
+  groupId   String?
+  group     AccessGroup? @relation(fields: [groupId], references: [id], onDelete: Restrict)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
   @@index([role])
+  @@index([groupId])
 }
 
 model InvoiceRecord {

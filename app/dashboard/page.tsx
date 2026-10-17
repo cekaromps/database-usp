@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/rbac";
 import { Metadata } from "next";
 import { MenuCard } from "./_components/MenuCard";
 import { menuItems, adminMenuItem } from "./_components/MenuItems";
+import { allowedSections } from "@/lib/access";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -13,10 +14,11 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = await requireUser();
+  // Cards are only a convenience; the real enforcement is in proxy.ts + requireSection().
+  const allowed = allowedSections(session);
+  const sectionCards = menuItems.filter((m) => allowed.includes(m.section));
   const items =
-    session.role === "ADMIN" || session.role === "SUPERADMIN"
-      ? [...menuItems, adminMenuItem]
-      : menuItems;
+    session.role === "SUPERADMIN" ? [...sectionCards, adminMenuItem] : sectionCards;
 
   return (
     <div className="min-h-screen bg-[url(/wallpaper.jpg)] bg-white/50 bg-blend-overlay bg-cover text-macos-primary p-10 font-sans antialiased flex flex-col">

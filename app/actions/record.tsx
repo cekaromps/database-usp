@@ -1,10 +1,13 @@
 "use server";
+
+import { assertSection } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as XLSX from "xlsx";
 
 export async function createRecordAction(formData: FormData) {
+  await assertSection("finance")
   const customer = formData.get("customer") as string;
   const description = formData.get("description") as string;
   const quotationNumber = formData.get("quotationNumber") as string;
@@ -51,6 +54,7 @@ export async function createRecordAction(formData: FormData) {
 }
 
 export async function deleteRecordAction(id: string) {
+  await assertSection("finance")
   try {
     await prisma.invoiceRecord.delete({
       where: { id },
@@ -165,6 +169,7 @@ const CUSTOMER_DATA: Record<string, { code: string; address: string }> = {
 };
 
 export async function uploadExcelAction(formData: FormData) {
+  await assertSection("finance")
   const file = formData.get("excelFile") as File;
 
   if (!file || file.size === 0) {
@@ -410,6 +415,7 @@ export async function uploadExcelAction(formData: FormData) {
 }
 
 export async function createInvoiceWithItemsAction(formData: FormData) {
+  await assertSection("finance")
   const customer = formData.get("customer") as string;
   const attn = formData.get("attn") as string;
   const cc = (formData.get("cc") as string)?.trim() || "-";
@@ -559,6 +565,7 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
 }
 
 export async function updateInvoiceAction(formData: FormData) {
+  await assertSection("finance")
   const noInv = formData.get("noInv") as string;
   const originalNoInv = formData.get("originalNoInv") as string;
   const quotationNumber = formData.get("quotationNumber") as string;
@@ -733,6 +740,7 @@ export async function updateInvoiceAction(formData: FormData) {
 }
 
 export async function getNextSubItemNumber(customerName: string) {
+  await assertSection("finance")
   try {
     const now = new Date();
 

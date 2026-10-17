@@ -3,11 +3,11 @@ import { checkRole } from "@/lib/rbac"
 import bcrypt from "bcryptjs"
 import { NextResponse } from "next/server"
 
-// Both endpoints below are for admin/superadmin use only (e.g. programmatic
+// Both endpoints below are for superadmin use only (e.g. programmatic
 // access). The primary UI for this lives at /dashboard/admin/users.
 
 export async function GET() {
-  const session = await checkRole(["SUPERADMIN", "ADMIN"])
+  const session = await checkRole(["SUPERADMIN"])
   if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
@@ -18,6 +18,7 @@ export async function GET() {
       username: true,
       role: true,
       isActive: true,
+      groupId: true,
       createdAt: true,
     },
     orderBy: { createdAt: "asc" },
@@ -27,7 +28,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await checkRole(["SUPERADMIN", "ADMIN"])
+  const session = await checkRole(["SUPERADMIN"])
   if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }

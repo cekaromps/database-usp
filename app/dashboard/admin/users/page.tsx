@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { requireRole } from "@/lib/rbac"
 import { CreateUserForm } from "./_components/CreateUserForm"
 import { UsersTable } from "./_components/UsersTable"
+import { GroupsManager } from "./_components/GroupsManager"
 
 export const metadata: Metadata = {
   title: "Manajemen User",
@@ -13,12 +14,18 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic"
 
 export default async function AdminUsersPage() {
-  const session = await requireRole(["SUPERADMIN", "ADMIN"])
+  const session = await requireRole(["SUPERADMIN"])
 
   const users = await prisma.user.findMany({
-    select: { id: true, username: true, role: true, isActive: true, createdAt: true },
+    select: { id: true, username: true, role: true, groupId: true, isActive: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   })
+
+  const groupRows = await prisma.accessGroup.findMany({
+    select: { id: true, name: true, sections: true, _count: { select: { users: true } } },
+    orderBy: { name: "asc" },
+  })
+  const groups = groupRows.map((g) => ({ id: g.id, name: g.name, sections: g.sections, userCount: g._count.users }))
 
   return (
     <div className="min-h-screen bg-macos-base text-macos-primary p-10 font-sans antialiased">
@@ -39,16 +46,10 @@ export default async function AdminUsersPage() {
       </header>
 
       <div className="space-y-6">
-        <CreateUserForm canAssignAdmin={session.role === "SUPERADMIN"} />
-        <UsersTable users={users} viewerId={session.userId} viewerRole={session.role} />
+        <GroupsManager groups={groups} />
+        <CreateUserForm canAssignAdmin groups={groups} />
+        <UsersTable users={users} groups={groups} viewerId={session.userId} viewerRole={session.role} />
       </div>
-
-      {session.role === "ADMIN" && (
-        <p className="text-xs text-macos-tertiary mt-6">
-          Sebagai admin, Anda hanya bisa mengelola akun dengan role User. Perubahan role atau
-          pengelolaan akun admin/superadmin lain hanya bisa dilakukan oleh superadmin.
-        </p>
-      )}
     </div>
   )
 }

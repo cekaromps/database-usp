@@ -1,8 +1,10 @@
+import { checkSection } from "@/lib/rbac"
 // app/api/accounts/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
+  if (!(await checkSection("finance"))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     // Ambil semua akun COA dari database, urutkan berdasarkan kode akun
     const accounts = await prisma.account.findMany({

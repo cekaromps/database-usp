@@ -5,6 +5,7 @@ import {
   deleteUserAction,
   resetPasswordAction,
   toggleActiveAction,
+  updateUserGroupAction,
   updateUserRoleAction,
 } from "../_actions"
 
@@ -14,6 +15,7 @@ export type UserRow = {
   id: string
   username: string
   role: Role
+  groupId: string | null
   isActive: boolean
   createdAt: string | Date
 }
@@ -33,10 +35,12 @@ const roleBadge: Record<Role, string> = {
 
 export function UsersTable({
   users,
+  groups,
   viewerId,
   viewerRole,
 }: {
   users: UserRow[]
+  groups: { id: string; name: string }[]
   viewerId: string
   viewerRole: Role
 }) {
@@ -58,6 +62,7 @@ export function UsersTable({
           <tr className="border-b border-macos-separator text-left text-xs text-macos-secondary uppercase tracking-wide">
             <th className="p-4">Username</th>
             <th className="p-4">Role</th>
+            <th className="p-4">Tipe Akun</th>
             <th className="p-4">Status</th>
             <th className="p-4">Aksi</th>
           </tr>
@@ -94,6 +99,30 @@ export function UsersTable({
                     <span className={`px-2 py-1 rounded-full text-xs border ${roleBadge[u.role]}`}>
                       {u.role}
                     </span>
+                  )}
+                </td>
+                <td className="p-4">
+                  {u.role === "SUPERADMIN" ? (
+                    <span className="text-xs text-macos-tertiary">Semua section</span>
+                  ) : (
+                    <select
+                      defaultValue={u.groupId ?? ""}
+                      disabled={isPending}
+                      onChange={(e) => {
+                        const fd = new FormData()
+                        fd.set("userId", u.id)
+                        fd.set("groupId", e.target.value)
+                        run(updateUserGroupAction, fd, u.id)
+                      }}
+                      className="bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-1.5 text-xs"
+                    >
+                      <option value="">Semua section</option>
+                      {groups.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
                   )}
                 </td>
                 <td className="p-4">

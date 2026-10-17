@@ -1,3 +1,4 @@
+import { checkDrivePath } from '@/lib/rbac';
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
@@ -19,6 +20,7 @@ function getSafePath(relativePath: string | null): string {
 }
 
 export async function GET(request: NextRequest) {
+  if (!(await checkDrivePath(new URL(request.url).searchParams.get('path')))) return Response.json({ error: 'Forbidden' }, { status: 403 });
   try {
     const { searchParams } = new URL(request.url);
     const targetPath = searchParams.get('path') || '';
@@ -51,6 +53,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { currentPath, folderName } = await request.json();
+    if (!(await checkDrivePath(path.join(String(currentPath || ''), String(folderName || ''))))) return Response.json({ error: 'Forbidden' }, { status: 403 });
     if (!folderName) return NextResponse.json({ error: 'Folder name required' }, { status: 400 });
 
     const targetDir = getSafePath(path.join(currentPath || '', folderName));

@@ -5,36 +5,6 @@ import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { redirect } from "next/navigation"
 
-export async function signupAction(formData: FormData) {
-  const usernameInput = formData.get("username") as string
-  const passwordInput = formData.get("password") as string
-
-  if (!usernameInput || !passwordInput) return "Missing fields"
-
-  const username = usernameInput.trim().toLowerCase() // Standardize here too
-
-  try {
-    const exists = await prisma.user.findUnique({ where: { username } })
-    if (exists) return "Username already taken"
-
-    const hashedPassword = await bcrypt.hash(passwordInput, 10)
-
-    // Public self-registration is always a plain USER. Promoting someone to
-    // ADMIN/SUPERADMIN can only be done afterwards by an existing admin from
-    // the /dashboard/admin/users panel.
-    const user = await prisma.user.create({
-      data: { username, password: hashedPassword, role: "USER" },
-    })
-
-    await createSession(user)
-  } catch (error) {
-    console.error(error)
-    return "Database transaction failed"
-  }
-
-  redirect("/dashboard")
-}
-
 export async function loginAction(formData: FormData) {
   const usernameInput = formData.get("username") as string
   const passwordInput = formData.get("password") as string
@@ -47,6 +17,7 @@ export async function loginAction(formData: FormData) {
   try {
     const user = await prisma.user.findUnique({
       where: { username },
+      include: { group: { select: { sections: true } } },
     })
 
     if (!user) {
