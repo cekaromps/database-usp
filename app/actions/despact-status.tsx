@@ -24,7 +24,7 @@ async function changeStatus(
   // old status in WHERE prevents two people overwriting each other
   const res = await prisma.despactItem.updateMany({
     where: { id: itemId, status: item.status },
-    data: { status: to },
+    data: { status: to, closedAt: to === "CLOSE" ? new Date() : null },
   });
   if (res.count === 0) return "Status sudah berubah, silakan refresh.";
 

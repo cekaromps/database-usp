@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import {
   STATUS_LABELS,
   STATUS_VALUES,
@@ -13,6 +13,7 @@ import {
   productionUpdateStatusAction,
   financeCloseItemAction,
 } from "@/app/actions/despact-status";
+import { addDespactItemCommentAction } from "@/app/actions/despact-comment";
 import type { DespactRow } from "@/lib/despact-queries";
 
 const BADGE: Record<DespactStatus, string> = {
@@ -43,7 +44,99 @@ const fmtDate = (iso: string) =>
     year: "numeric",
   });
 
+const fmtDateTime = (iso: string) =>
+  new Date(iso).toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
 type Filter = "ALL" | DespactStatus;
+
+function CommentSection({
+  itemId,
+  comments,
+  canWrite,
+}: {
+  itemId: number;
+  comments: DespactRow["items"][number]["comments"];
+  canWrite: boolean;
+}) {
+  const [text, setText] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const submit = () => {
+    if (!text.trim()) return;
+    setErr(null);
+    startTransition(async () => {
+      const msg = await addDespactItemCommentAction(itemId, text);
+      if (msg) setErr(msg);
+      else setText("");
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      {comments.length === 0 && (
+        <p className="text-xs text-macos-secondary">No comments yet.</p>
+      )}
+
+      {comments.length > 0 && (
+        <ul className="space-y-2 max-h-60 overflow-y-auto">
+          {comments.map((c) => (
+            <li
+              key={c.id}
+              className="bg-macos-popover border border-macos-separator rounded-lg px-3 py-2"
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-xs font-semibold text-macos-primary">
+                  {c.authorName}
+                </span>
+                <span className="text-[11px] text-macos-secondary whitespace-nowrap">
+                  {fmtDateTime(c.createdAt)}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-macos-primary whitespace-pre-wrap break-words">
+                {c.body}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {canWrite && (
+        <div className="space-y-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit();
+            }}
+            maxLength={1000}
+            rows={2}
+            placeholder="Write a comment for finance..."
+            className="w-full bg-macos-popover border border-macos-separator text-macos-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-macos-blue transition resize-y"
+          />
+          {err && <p className="text-xs text-macos-red">✕ {err}</p>}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={submit}
+              disabled={pending || !text.trim()}
+              className="px-3 py-1.5 bg-macos-blue text-white rounded-md text-xs font-semibold hover:bg-opacity-90 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {pending ? "Sending..." : "Add Comment"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function DespactList({
   despacts,
@@ -56,6 +149,15 @@ export default function DespactList({
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("ALL");
+    const [openComments, setOpenComments] = useState<Set<number>>(new Set());
+
+  const toggleComments = (itemId: number) =>
+    setOpenComments((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
 
   const showPrice = mode === "finance";
 
@@ -84,7 +186,11 @@ export default function DespactList({
     .map((d) => ({
       ...d,
       shownItems:
-        filter === "ALL" ? d.items : d.items.filter((i) => i.status === filter),
+        filter === "ALL" ? d.items : d.items.filter((i) => i.status === filter).
+        slice()
+        .sort(
+          (a, b) => Number(a.status === "CLOSE") - Number(b.status === "CLOSE")
+        ),
     }))
     .filter((d) => {
       if (d.shownItems.length === 0) return false;
@@ -94,6 +200,11 @@ export default function DespactList({
         d.customerName.toLowerCase().includes(q) ||
         d.items.some((i) => i.description.toLowerCase().includes(q))
       );
+    })
+    .sort((a, b) => {
+      const aClosed = a.items.length > 0 && a.items.every((i) => i.status === "CLOSE");
+      const bClosed = b.items.length > 0 && b.items.every((i) => i.status === "CLOSE");
+      return Number(aClosed) - Number(bClosed);
     });
 
   const chip = (active: boolean) =>
@@ -136,6 +247,14 @@ export default function DespactList({
       placeholder="Search registration no, customer, or item..."
       className="w-full bg-macos-popover border border-macos-separator text-macos-primary rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-macos-blue transition"
     />
+
+    <a
+      href="/api/despact/report"
+      download
+      className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-macos-separator bg-macos-popover text-macos-primary rounded-lg text-sm font-semibold hover:border-macos-blue hover:text-macos-blue transition whitespace-nowrap shadow-sm"
+    >
+      ⬇ Excel Report
+    </a>
 
     {mode === "finance" && (
       <Link
@@ -305,12 +424,20 @@ export default function DespactList({
                       FINANCE_NEXT[item.status].includes("CLOSE");
 
                     return (
+                      <Fragment key={item.id}>
                       <tr
-                        key={item.id}
                         className="text-macos-primary hover:bg-macos-base transition-colors"
                       >
                         <td className="px-5 py-3 align-middle break-words">
                           {item.description}
+                          <button
+                            type="button"
+                            onClick={() => toggleComments(item.id)}
+                            className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-macos-secondary hover:text-macos-blue transition cursor-pointer"
+                          >
+                            💬 Comments ({item.comments.length}){" "}
+                            {openComments.has(item.id) ? "▲" : "▼"}
+                          </button>
                         </td>
                         <td className="px-3 py-3 text-center whitespace-nowrap">
                           {item.qty}{" "}
@@ -374,6 +501,21 @@ export default function DespactList({
                           )}
                         </td>
                       </tr>
+                      {openComments.has(item.id) && (
+                        <tr>
+                          <td
+                            colSpan={showPrice ? 5 : 4}
+                            className="px-5 py-3 bg-macos-base"
+                          >
+                            <CommentSection
+                              itemId={item.id}
+                              comments={item.comments}
+                              canWrite={mode === "production"}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </tbody>

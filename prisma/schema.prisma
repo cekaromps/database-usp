@@ -278,4 +278,18 @@ model DespactItem {
   unit        String   @default("pcs")  
   amountIdr   Decimal  @db.Decimal(18, 2)
   status      DespactStatus @default(ON_PROCESS)
+  closedAt    DateTime?
+  comments    DespactComment[]
+}
+
+model DespactComment {
+  id            Int         @id @default(autoincrement())
+  despactItemId Int
+  despactItem   DespactItem @relation(fields: [despactItemId], references: [id], onDelete: Cascade)
+  authorId      String?
+  authorName    String
+  body          String
+  createdAt     DateTime    @default(now())
+
+  @@index([despactItemId, createdAt])
 }

@@ -17,6 +17,12 @@ export type DespactRow = {
     unit: string;
     amountIdr: number | null;
     status: DespactStatus;
+    comments: {
+      id: number;
+      authorName: string;
+      body: string;
+      createdAt: string;
+    }[];
   }[];
 };
 
@@ -27,7 +33,10 @@ export async function getDespacts(
     orderBy: { createdAt: "desc" },
     include: {
       customer: { select: { name: true } },
-      items: { orderBy: { id: "asc" } },
+      items: { 
+        orderBy: { id: "asc" },
+        include: { comments: { orderBy: { createdAt: "asc"}}}
+      },
     },
   });
 
@@ -47,6 +56,12 @@ export async function getDespacts(
       unit: i.unit,
       amountIdr: includePrices ? Number(i.amountIdr) : null,
       status: i.status,
+      comments: i.comments.map((c) => ({
+        id: c.id,
+        authorName: c.authorName,
+        body: c.body,
+        createdAt: c.createdAt.toISOString(),
+      })),
     })),
   }));
 }
