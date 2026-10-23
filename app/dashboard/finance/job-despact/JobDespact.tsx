@@ -549,7 +549,7 @@ export default function DespactForm() {
             disabled={isPending}
             className="w-full py-2.5 bg-macos-blue text-white rounded-md font-semibold text-sm hover:bg-opacity-90 active:scale-[0.99] transition cursor-pointer shadow-lg disabled:opacity-50"
           >
-            {isPending ? "Saving Records..." : "Save Quotation and All Items"}
+            {isPending ? "Saving Records..." : "Save Customer PO"}
           </button>
         </div>
       </div>
