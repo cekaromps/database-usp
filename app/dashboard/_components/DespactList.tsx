@@ -249,7 +249,7 @@ export default function DespactList({
     />
 
     <a
-      href="/api/despact/report"
+      href={`/api/despact/report?mode=${mode}`}
       download
       className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-macos-separator bg-macos-popover text-macos-primary rounded-lg text-sm font-semibold hover:border-macos-blue hover:text-macos-blue transition whitespace-nowrap shadow-sm"
     >

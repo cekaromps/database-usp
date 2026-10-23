@@ -5,13 +5,17 @@ import { STATUS_LABELS } from "@/lib/despact-status";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const session = await checkSection(["production", "finance"]);
+export async function GET(req: Request) {
+
+  const mode =
+    new URL(req.url).searchParams.get("mode") === "finance" ? "finance" : "production";
+
+  const session = await checkSection(mode);
   if (!session) return Response.json({ error: "Forbidden" }, { status: 403 });
 
   // Prices are finance-only, same rule as the on-screen list
   const financeSession = await checkSection("finance");
-  const includePrices = !!financeSession;
+  const includePrices = mode === "finance";
 
   const despacts = await getDespacts({ includePrices });
   const now = new Date();
