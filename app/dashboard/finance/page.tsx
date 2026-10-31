@@ -37,7 +37,8 @@ const sections: Section[] = [
       {
         title: "Job Despact",
         href: "/dashboard/finance/job-despact-list"
-      }
+      },
+      { title: "SOA", href: "/dashboard/finance/soa" },
     ],
   },
   {

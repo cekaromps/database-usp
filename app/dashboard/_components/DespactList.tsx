@@ -15,6 +15,7 @@ import {
 } from "@/app/actions/despact-status";
 import { addDespactItemCommentAction } from "@/app/actions/despact-comment";
 import type { DespactRow } from "@/lib/despact-queries";
+import SoaDownloadButton from "./SoaDownloadButton";
 
 const BADGE: Record<DespactStatus, string> = {
   ON_PROCESS: "bg-macos-blue/10 text-macos-blue border-macos-blue/30",
@@ -141,9 +142,11 @@ function CommentSection({
 export default function DespactList({
   despacts,
   mode,
+  customers = [],
 }: {
   despacts: DespactRow[];
   mode: "production" | "finance";
+  customers?: { id: number; code: string; name: string }[];
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -255,6 +258,8 @@ export default function DespactList({
     >
       ⬇ Excel Report
     </a>
+
+    {mode === "finance" && <SoaDownloadButton customers={customers} />}
 
     {mode === "finance" && (
       <Link

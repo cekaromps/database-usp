@@ -246,6 +246,7 @@ model Customer {
   address     String
   createdAt   DateTime @default(now())
   despacts    Despact[]
+  soaStatements SoaStatement[]
 }
 
 enum DespactStatus {
@@ -292,4 +293,22 @@ model DespactComment {
   createdAt     DateTime    @default(now())
 
   @@index([despactItemId, createdAt])
+}
+
+
+// Frozen copy of a monthly Statement of Account. Closed despacts are auto-deleted after
+// DESPACT_RETENTION_MONTHS, so this is what keeps old months downloadable.
+model SoaStatement {
+  id              Int      @id @default(autoincrement())
+  customerId      Int
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  period          String   // "YYYY-MM"
+  statementNumber String
+  payload         Json
+  totalIdr        Decimal  @db.Decimal(18, 2)
+  netIdr          Decimal  @db.Decimal(18, 2)
+  generatedAt     DateTime @default(now())
+
+  @@unique([customerId, period])
+  @@index([period])
 }

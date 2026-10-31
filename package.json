@@ -7,6 +7,7 @@
         "build": "next build",
         "start": "next start",
         "db:backup": "tsx backup.ts",
+        "soa:sync": "tsx scripts/soa-sync.ts",
         "lint": "eslint"
     },
     "dependencies": {
@@ -18,6 +19,7 @@
         "@univerjs/presets": "^1.0.2",
         "bcryptjs": "^3.0.3",
         "dotenv": "^17.4.2",
+        "exceljs": "^4.4.0",
         "jose": "^6.2.10",
         "jszip": "^3.10.1",
         "lucide": "^1.16.0",

@@ -13,7 +13,6 @@ export async function GET(req: Request) {
   const session = await checkSection(mode);
   if (!session) return Response.json({ error: "Forbidden" }, { status: 403 });
 
-  // Prices are finance-only, same rule as the on-screen list
   const financeSession = await checkSection("finance");
   const includePrices = mode === "finance";
 
