@@ -23,7 +23,9 @@ export async function GET(req: Request) {
     const allClosed = d.items.length > 0 && d.items.every((i) => i.status === "CLOSE");
     const overdue = !allClosed && new Date(d.dueDate) < now;
     return d.items.map((i) => ({
-      "Customer PO": d.registrationNumber,
+      "Registration No": d.registrationNumber,
+      "Quotation No": d.quotationNumber ?? "",
+      "PO No": d.poNumber ?? "",
       Customer: d.customerName,
       Attn: d.attn,
       Description: d.shortDescription,
@@ -35,6 +37,8 @@ export async function GET(req: Request) {
       Unit: i.unit,
       ...(includePrices ? { "Amount IDR": i.amountIdr ?? 0 } : {}),
       Status: STATUS_LABELS[i.status],
+      "DO No": i.doNumber ?? "",
+      "Invoice No": i.invoiceNumber ?? "",
       "Last Comment": i.comments.length ? i.comments[i.comments.length - 1].body : "",
     }));
   });
@@ -55,10 +59,10 @@ export async function GET(req: Request) {
   const wb = XLSX.utils.book_new();
   const ws1 = XLSX.utils.json_to_sheet(itemRows, { dateNF: "dd mmm yyyy" });
   ws1["!cols"] = [
-    { wch: 18 }, { wch: 28 }, { wch: 16 }, { wch: 24 }, { wch: 13 }, { wch: 13 },
+    { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 28 }, { wch: 16 }, { wch: 24 }, { wch: 13 }, { wch: 13 },
     { wch: 9 }, { wch: 34 }, { wch: 7 }, { wch: 7 },
     ...(includePrices ? [{ wch: 16 }] : []),
-    { wch: 15 }, { wch: 40 },
+    { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 40 },
   ];
   XLSX.utils.book_append_sheet(wb, ws1, "Despact");
 

@@ -794,12 +794,23 @@ export async function createDespactAction(
   await assertSection("finance");
   const customerName = String(formData.get("customer") ?? "").trim();
 
+  // new despacts must carry the quotation and PO numbers (older ones simply have none)
+  const quotationNumber = String(formData.get("quotationNumber") ?? "").trim();
+  if (!quotationNumber || quotationNumber === "-") {
+    return "Nomor Quotation wajib diisi.";
+  }
+  const poNumber = String(formData.get("poNumber") ?? "").trim();
+  if (!poNumber || poNumber === "-") {
+    return "Nomor PO wajib diisi.";
+  }
+
   let items: {
     description: string;
     qty: number;
     amountIdr: number;
     unit: "pcs" | "unit" | "set";
     status: DespactStatus;
+    doNumber?: string;
   }[];
   try {
     items = JSON.parse(String(formData.get("itemsJson") ?? "[]"));
@@ -815,6 +826,16 @@ export async function createDespactAction(
     if (!(i.amountIdr > 0)) return "Amount item tidak valid.";
     if (!["pcs", "unit", "set"].includes(i.unit)) return "Unit tidak valid.";
     if (!STATUS_VALUES.includes(i.status)) return "Status item tidak valid.";
+    // closing needs an invoice number, which is only collected from the finance list
+    if (i.status === "CLOSE") {
+      return "Item tidak bisa dibuat langsung Close. Tutup lewat daftar Despact dengan Nomor Invoice.";
+    }
+    // Ready Delivery (and later) needs a DO number
+    if (i.status !== "ON_PROCESS") {
+      const dn = String(i.doNumber ?? "").trim();
+      if (!dn || dn === "-") return "Nomor DO wajib diisi untuk status Ready Delivery.";
+      if (dn.length > 50) return "Nomor DO maksimal 50 karakter.";
+    }
   }
 
   const customer = await prisma.customer.findFirst({
@@ -837,6 +858,8 @@ export async function createDespactAction(
     await prisma.despact.create({
       data: {
         registrationNumber: String(formData.get("registrationNumber")),
+        quotationNumber,
+        poNumber,
         customerId: customer.id,
         attn: String(formData.get("attn")),
         shortDescription: String(formData.get("shortDescription") || "-"),
@@ -850,6 +873,8 @@ export async function createDespactAction(
             unit: i.unit,
             amountIdr: i.amountIdr,
             status: i.status,
+            doNumber:
+              i.status === "ON_PROCESS" ? null : String(i.doNumber).trim(),
           })),
         },
       },

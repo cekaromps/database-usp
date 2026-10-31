@@ -258,7 +258,9 @@ enum DespactStatus {
 
 model Despact {
   id                 Int           @id @default(autoincrement())
-  registrationNumber String        @unique   
+  registrationNumber String        @unique
+  quotationNumber    String?       // entered when the despact is created; empty on older despacts
+  poNumber           String?       // entered when the despact is created; empty on older despacts
   customerId         Int
   customer           Customer      @relation(fields: [customerId], references: [id])
   attn               String
@@ -280,6 +282,8 @@ model DespactItem {
   amountIdr   Decimal  @db.Decimal(18, 2)
   status      DespactStatus @default(ON_PROCESS)
   closedAt    DateTime?
+  doNumber    String?  // required when the item moves to Ready Delivery
+  invoiceNumber String? // required when finance closes the item
   comments    DespactComment[]
 }
 

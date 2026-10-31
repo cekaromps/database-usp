@@ -11,6 +11,7 @@ interface ItemRow {
   amountIdr: number;
   unit: "pcs" | "unit" | "set";
   status: DespactStatus;
+  doNumber?: string;
 }
 
 interface Customer {
@@ -185,6 +186,12 @@ export default function DespactForm() {
       return;
     }
 
+    // Ready Delivery (and later) needs a DO number
+    if (items.some((item) => item.status !== "ON_PROCESS" && !item.doNumber?.trim())) {
+      setError("Nomor DO wajib diisi untuk item dengan status Ready Delivery.");
+      return;
+    }
+
     const formData = new FormData(e.currentTarget);
     formData.append("itemsJson", JSON.stringify(items));
 
@@ -292,6 +299,34 @@ export default function DespactForm() {
               type="text"
               required
               className="w-full bg-macos-separator/30 border border-macos-separator text-macos-primary font-mono rounded-md p-2 text-sm select-none font-semibold opacity-70"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+              Quotation Number *
+            </label>
+            <input
+              name="quotationNumber"
+              type="text"
+              required
+              disabled={isPending}
+              placeholder="e.g. Q098-2610-001"
+              className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary font-mono rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+              PO Number *
+            </label>
+            <input
+              name="poNumber"
+              type="text"
+              required
+              disabled={isPending}
+              placeholder="e.g. PO-2610-001"
+              className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary font-mono rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue"
             />
           </div>
 
@@ -455,7 +490,7 @@ export default function DespactForm() {
                         }
                         className="w-full appearance-none bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 pr-8 text-sm focus:outline-none focus:border-macos-blue transition cursor-pointer scheme-dark disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {STATUS_VALUES.map((s) => (
+                        {STATUS_VALUES.filter((s) => s !== "CLOSE").map((s) => (
                           <option key={s} value={s}>
                             {STATUS_LABELS[s]}
                           </option>
@@ -516,6 +551,25 @@ export default function DespactForm() {
                     )}
                   </div>
                 </div>
+                {item.status !== "ON_PROCESS" && (
+                  <div className="sm:w-1/2">
+                    <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                      DO Number #{index + 1} *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={50}
+                      value={item.doNumber ?? ""}
+                      disabled={isPending}
+                      onChange={(e) =>
+                        updateItemField(item.id, "doNumber", e.target.value)
+                      }
+                      placeholder="e.g. DO-2610-001"
+                      className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition font-mono"
+                    />
+                  </div>
+                )}
                 {items.length > 1 && (
                   <button
                     type="button"

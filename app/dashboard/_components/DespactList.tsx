@@ -153,6 +153,44 @@ export default function DespactList({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("ALL");
     const [openComments, setOpenComments] = useState<Set<number>>(new Set());
+  // An item waiting for a reference number before its status can change:
+  //  - "do":      production moving an item to Ready Delivery needs a DO number
+  //  - "invoice": finance closing an item needs an invoice number
+  const [prompt, setPrompt] = useState<{
+    kind: "do" | "invoice";
+    id: number;
+    description: string;
+  } | null>(null);
+  const [promptValue, setPromptValue] = useState("");
+  const [promptError, setPromptError] = useState<string | null>(null);
+
+  const openPrompt = (kind: "do" | "invoice", id: number, description: string) => {
+    setPromptValue("");
+    setPromptError(null);
+    setPrompt({ kind, id, description });
+  };
+
+  const submitPrompt = () => {
+    if (!prompt) return;
+    const value = promptValue.trim();
+    if (!value) {
+      setPromptError(
+        prompt.kind === "do"
+          ? "Nomor DO wajib diisi untuk Ready Delivery."
+          : "Nomor Invoice wajib diisi untuk menutup item.",
+      );
+      return;
+    }
+    setPromptError(null);
+    startTransition(async () => {
+      const msg =
+        prompt.kind === "do"
+          ? await productionUpdateStatusAction(prompt.id, "READY_DELIVERY", value)
+          : await financeCloseItemAction(prompt.id, value);
+      if (msg) setPromptError(msg);
+      else setPrompt(null);
+    });
+  };
 
   const toggleComments = (itemId: number) =>
     setOpenComments((prev) => {
@@ -339,6 +377,13 @@ export default function DespactList({
                     </span>
                   )}
                 </div>
+                {(d.quotationNumber || d.poNumber) && (
+                  <p className="text-xs font-mono text-macos-secondary">
+                    {d.quotationNumber && <>Quotation: {d.quotationNumber}</>}
+                    {d.quotationNumber && d.poNumber && " · "}
+                    {d.poNumber && <>PO: {d.poNumber}</>}
+                  </p>
+                )}
                 <p className="text-sm text-macos-primary font-medium truncate">
                   {d.customerName}
                 </p>
@@ -466,6 +511,16 @@ export default function DespactList({
                             />
                             {STATUS_LABELS[item.status]}
                           </span>
+                          {item.doNumber && (
+                            <p className="mt-1 text-[11px] font-mono text-macos-secondary break-all">
+                              DO: {item.doNumber}
+                            </p>
+                          )}
+                          {item.invoiceNumber && (
+                            <p className="mt-0.5 text-[11px] font-mono text-macos-secondary break-all">
+                              INV: {item.invoiceNumber}
+                            </p>
+                          )}
                         </td>
                         <td className="px-5 py-3 text-right">
                           {mode === "production" &&
@@ -475,9 +530,11 @@ export default function DespactList({
                                 type="button"
                                 disabled={isPending}
                                 onClick={() =>
-                                  run(() =>
-                                    productionUpdateStatusAction(item.id, to),
-                                  )
+                                  to === "READY_DELIVERY"
+                                    ? openPrompt("do", item.id, item.description)
+                                    : run(() =>
+                                        productionUpdateStatusAction(item.id, to),
+                                      )
                                 }
                                 className="px-3 py-1.5 bg-macos-blue/10 border border-macos-blue/30 text-macos-blue rounded-md text-xs font-semibold hover:bg-macos-blue hover:text-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                               >
@@ -490,7 +547,7 @@ export default function DespactList({
                               type="button"
                               disabled={isPending}
                               onClick={() =>
-                                run(() => financeCloseItemAction(item.id))
+                                openPrompt("invoice", item.id, item.description)
                               }
                               className="px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-600 rounded-md text-xs font-semibold hover:bg-green-500 hover:text-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
@@ -529,6 +586,77 @@ export default function DespactList({
           </section>
         );
       })}
+
+      {/* Reference number prompt: DO number for Ready Delivery, invoice number to close */}
+      {prompt && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-macos-popover border border-macos-separator rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+            <div className="border-b border-macos-separator pb-2">
+              <h3 className="text-base font-semibold text-macos-primary">
+                {prompt.kind === "do" ? "Move to Ready Delivery" : "Close Item"}
+              </h3>
+              <p className="mt-1 text-xs text-macos-secondary break-words">
+                {prompt.description}
+              </p>
+            </div>
+
+            {promptError && (
+              <div className="p-2.5 bg-macos-red/10 border border-macos-red/30 text-macos-red rounded-lg text-xs font-medium">
+                ✕ {promptError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-medium text-macos-secondary mb-1.5">
+                {prompt.kind === "do" ? "DO Number *" : "Invoice Number *"}
+              </label>
+              <input
+                type="text"
+                autoFocus
+                maxLength={50}
+                value={promptValue}
+                disabled={isPending}
+                onChange={(e) => setPromptValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitPrompt();
+                  }
+                }}
+                placeholder={
+                  prompt.kind === "do" ? "e.g. DO-2610-001" : "e.g. INV-2610-001"
+                }
+                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 text-sm focus:outline-none focus:border-macos-blue transition font-mono"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setPrompt(null)}
+                disabled={isPending}
+                className="flex-1 py-2 border border-macos-separator text-macos-secondary rounded-md text-sm font-semibold hover:bg-macos-tertiary transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitPrompt}
+                disabled={isPending || !promptValue.trim()}
+                className={`flex-1 py-2 text-white rounded-md text-sm font-semibold hover:bg-opacity-90 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  prompt.kind === "do" ? "bg-macos-blue" : "bg-green-600"
+                }`}
+              >
+                {isPending
+                  ? "Saving..."
+                  : prompt.kind === "do"
+                    ? "→ Ready Delivery"
+                    : "✓ Close Item"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
