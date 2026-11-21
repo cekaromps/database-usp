@@ -7,11 +7,34 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  SUPERADMIN
+  ADMIN
+  USER
+}
+
+model AccessGroup {
+  id        String   @id @default(cuid())
+  name      String   @unique         
+  sections  String[] @default([])    
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+}
+
 model User {
   id        String   @id @default(cuid())
   username  String   @unique
   password  String
+  role      Role     @default(USER)
+  groupId   String?
+  group     AccessGroup? @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([role])
+  @@index([groupId])
 }
 
 model InvoiceRecord {
@@ -217,9 +240,88 @@ model Ecom {
 }
 
 model Customer {
+<<<<<<< HEAD
   id           Int           @id @default(autoincrement())
   customerCode String
   name         String
   address      String
   createdAt    DateTime       
 }
+=======
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(3)
+  name        String
+  address     String
+  createdAt   DateTime @default(now())
+  despacts    Despact[]
+  soaStatements SoaStatement[]
+}
+
+enum DespactStatus {
+  ON_PROCESS
+  READY_DELIVERY
+  DELIVERY
+  CLOSE
+}
+
+model Despact {
+  id                 Int           @id @default(autoincrement())
+  registrationNumber String        @unique
+  quotationNumber    String?       // entered when the despact is created; empty on older despacts
+  poNumber           String?       // entered when the despact is created; empty on older despacts
+  customerId         Int
+  customer           Customer      @relation(fields: [customerId], references: [id])
+  attn               String
+  shortDescription   String        @default("-")  
+  poDate             DateTime                        
+  dueDate            DateTime                      
+  totalIdr           Decimal       @db.Decimal(18, 2)
+  items              DespactItem[]
+  createdAt          DateTime      @default(now())
+}
+
+model DespactItem {
+  id          Int      @id @default(autoincrement())
+  despactId   Int
+  despact     Despact  @relation(fields: [despactId], references: [id], onDelete: Cascade)
+  description String
+  qty         Int
+  unit        String   @default("pcs")  
+  amountIdr   Decimal  @db.Decimal(18, 2)
+  status      DespactStatus @default(ON_PROCESS)
+  closedAt    DateTime?
+  doNumber    String?  // required when the item moves to Ready Delivery
+  invoiceNumber String? // required when finance closes the item
+  comments    DespactComment[]
+}
+
+model DespactComment {
+  id            Int         @id @default(autoincrement())
+  despactItemId Int
+  despactItem   DespactItem @relation(fields: [despactItemId], references: [id], onDelete: Cascade)
+  authorId      String?
+  authorName    String
+  body          String
+  createdAt     DateTime    @default(now())
+
+  @@index([despactItemId, createdAt])
+}
+
+
+// Frozen copy of a monthly Statement of Account. Closed despacts are auto-deleted after
+// DESPACT_RETENTION_MONTHS, so this is what keeps old months downloadable.
+model SoaStatement {
+  id              Int      @id @default(autoincrement())
+  customerId      Int
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  period          String   // "YYYY-MM"
+  statementNumber String
+  payload         Json
+  totalIdr        Decimal  @db.Decimal(18, 2)
+  netIdr          Decimal  @db.Decimal(18, 2)
+  generatedAt     DateTime @default(now())
+
+  @@unique([customerId, period])
+  @@index([period])
+}
+>>>>>>> 8f8c41f125dece11ffd0f432b1476eac12abf5b1

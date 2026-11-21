@@ -1,10 +1,9 @@
 import { logoutAction } from "@/app/actions/auth";
-import { cookies } from "next/headers";
-import { decrypt } from "@/lib/session";
-import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/rbac";
 import { Metadata } from "next";
 import { MenuCard } from "./_components/MenuCard";
-import { menuItems } from "./_components/MenuItems";
+import { menuItems, adminMenuItem } from "./_components/MenuItems";
+import { allowedSections } from "@/lib/access";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -14,26 +13,27 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const cookieStore = await cookies();
-  const cookie = cookieStore.get("session")?.value;
-  const session = await decrypt(cookie);
-
-  if (!session?.userId) {
-    redirect("/signin");
-  }
+  const session = await requireUser();
+  // Cards are only a convenience; the real enforcement is in proxy.ts + requireSection().
+  const allowed = allowedSections(session);
+  const sectionCards = menuItems.filter((m) => allowed.includes(m.section));
+  const items =
+    session.role === "SUPERADMIN" ? [...sectionCards, adminMenuItem] : sectionCards;
 
   return (
-    <div className="min-h-screen bg-macos-base text-macos-primary p-10 font-sans antialiased">
-      {/* HEADER SECTION */}
-      <header className="flex items-center justify-between mb-8 pb-4 border-b border-macos-separator">
+    <div className="min-h-screen bg-[url(/wallpaper.jpg)] bg-white/50 bg-blend-overlay bg-cover text-macos-primary p-10 font-sans antialiased flex flex-col">
+      <header className="flex items-center justify-between mb-8 pb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Dashboard Central
+            PT. UPS Dashboard
           </h1>
           <p className="text-sm text-macos-secondary mt-0.5">
             Masuk sebagai:{" "}
             <span className="font-semibold text-macos-primary">
-              {String(session?.username)}
+              {session.username}
+            </span>{" "}
+            <span className="text-xs text-macos-tertiary">
+              ({session.role})
             </span>
           </p>
         </div>
@@ -47,13 +47,9 @@ export default async function DashboardPage() {
         </form>
       </header>
 
-      <section className="space-y-6">
-        <h3 className="text-lg font-semibold text-macos-primary tracking-tight">
-          Aplikasi & Menu Sistem
-        </h3>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {menuItems.map((item) => (
+      <section className="flex-1 max-h-128 w-full flex items-center justify-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 w-full max-w-5xl auto-rows-fr justify-items-center">
+          {items.map((item) => (
             <MenuCard key={item.title} {...item} />
           ))}
         </div>

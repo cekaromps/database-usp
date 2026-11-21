@@ -1,10 +1,13 @@
 "use server";
+
+import { assertSection } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma";
 
 export async function getFinancialReportData(
     startDateStr: string,
     endDateStr: string,
 ) {
+  await assertSection("finance")
     try {
         const startDate = new Date(startDateStr);
         const endDate = new Date(endDateStr);

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 const AccountType = {
   ASSET: 'ASSET',
@@ -36,8 +37,33 @@ const initialAccounts = [
   { code: '505', name: 'Beban Perlengkapan', type: AccountType.EXPENSE, description: 'Biaya utilitas bulanan kantor' },
 ]
 
+async function seedSuperadmin() {
+  const username = (process.env.SEED_SUPERADMIN_USERNAME || 'superadmin').toLowerCase()
+  const password = process.env.SEED_SUPERADMIN_PASSWORD || 'ChangeMe123!'
+
+  const existing = await prisma.user.findUnique({ where: { username } })
+  if (existing) {
+    console.log(`ℹ️  Akun superadmin "${username}" sudah ada, dilewati.`)
+    return
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10)
+  await prisma.user.create({
+    data: { username, password: hashedPassword, role: 'SUPERADMIN' },
+  })
+
+  console.log(`✅ Akun superadmin awal dibuat -> username: "${username}"`)
+  if (!process.env.SEED_SUPERADMIN_PASSWORD) {
+    console.log(
+      `⚠️  Password default dipakai ("${password}"). Set SEED_SUPERADMIN_PASSWORD di .env untuk produksi, dan segera ganti password setelah login pertama.`,
+    )
+  }
+}
+
 async function main() {
   console.log('Memulai proses seeding')
+
+  await seedSuperadmin()
 
   for (const account of initialAccounts) {
     await prisma.chartOfAccount.upsert({

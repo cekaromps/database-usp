@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { requireSection } from "@/lib/rbac";
 
-export default function AccountingLayout({
+export default async function AccountingLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    await requireSection("finance");
     return (
         <div className="flex flex-col min-h-screen bg-macos-secondary">
             <header className="bg-macos-secondary border-b border-gray-200 px-6 py-3 flex items-center gap-6">

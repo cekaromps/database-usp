@@ -1,10 +1,13 @@
 'use server'
 
+import { assertSection } from "@/lib/rbac"
+
 import { prisma } from "@/lib/prisma";
 import { AccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export async function getGroupedAccounts() {
+  await assertSection("finance")
   const accounts = await prisma.chartOfAccount.findMany({
     orderBy: {
       code: 'asc'
@@ -27,6 +30,7 @@ export async function getGroupedAccounts() {
 }
 
 export async function getAccountsForSelect() {
+  await assertSection("finance")
   return await prisma.chartOfAccount.findMany({
     select: {
       id: true,
@@ -45,6 +49,7 @@ export async function createAccount(data: {
   type: AccountType;
   description?: string;
 }) {
+  await assertSection("finance")
   try {
     const existing = await prisma.chartOfAccount.findUnique({
       where: { code: data.code }

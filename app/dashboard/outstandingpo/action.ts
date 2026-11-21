@@ -1,10 +1,13 @@
 "use server";
 
+import { assertSection } from "@/lib/rbac"
+
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function createJob(formData: FormData) {
+  await assertSection("production")
   const jobName = formData.get("jobName") as string;
   const qty = formData.get("qty") as string;
   const uom = formData.get("uom") as string;
@@ -43,6 +46,7 @@ export async function createJob(formData: FormData) {
 }
 
 export async function updateJobDoNumber(jobId: string, doNumber: string) {
+  await assertSection("production")
   const trimmed = doNumber.trim();
 
   await prisma.job.update({
@@ -54,6 +58,7 @@ export async function updateJobDoNumber(jobId: string, doNumber: string) {
 }
 
 export async function updateJobStatus(jobId: string, status: string) {
+  await assertSection("production")
   const trimmed = status.trim();
 
   await prisma.job.update({
@@ -65,6 +70,7 @@ export async function updateJobStatus(jobId: string, status: string) {
 }
 
 export async function deleteJob(jobId: string) {
+  await assertSection("production")
   await prisma.job.delete({ where: { id: jobId } });
   revalidatePath("/dashboard/jobtracker");
 }

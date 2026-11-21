@@ -1,0 +1,11 @@
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('SUPERADMIN', 'ADMIN', 'USER');
+
+-- AlterTable
+ALTER TABLE "User"
+  ADD COLUMN "role" "Role" NOT NULL DEFAULT 'USER',
+  ADD COLUMN "isActive" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- CreateIndex
+CREATE INDEX "User_role_idx" ON "User"("role");

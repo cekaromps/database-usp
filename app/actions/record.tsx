@@ -1,10 +1,14 @@
 "use server";
+
+import { assertSection } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import * as XLSX from "xlsx";
+import { STATUS_VALUES, type DespactStatus } from "@/lib/despact-status";
 
 export async function createRecordAction(formData: FormData) {
+  await assertSection("finance")
   const customer = formData.get("customer") as string;
   const description = formData.get("description") as string;
   const quotationNumber = formData.get("quotationNumber") as string;
@@ -51,6 +55,7 @@ export async function createRecordAction(formData: FormData) {
 }
 
 export async function deleteRecordAction(id: string) {
+  await assertSection("finance")
   try {
     await prisma.invoiceRecord.delete({
       where: { id },
@@ -64,6 +69,10 @@ export async function deleteRecordAction(id: string) {
   revalidatePath("/dashboard/datapodo");
 }
 
+// 🌟 LEGACY FALLBACK: daftar customer lama ini sekarang HANYA dipakai sebagai
+// fallback untuk data invoice lama yang customer-nya belum sempat di-seed ke
+// tabel Customer. Untuk customer baru, gunakan halaman Quotation Maker ->
+// tombol "+ Customer Baru" (data tersimpan ke tabel Customer di database).
 const CUSTOMER_DATA: Record<string, { code: string; address: string }> = {
   "PT OSI": {
     code: "001",
@@ -161,6 +170,7 @@ const CUSTOMER_DATA: Record<string, { code: string; address: string }> = {
 };
 
 export async function uploadExcelAction(formData: FormData) {
+  await assertSection("finance")
   const file = formData.get("excelFile") as File;
 
   if (!file || file.size === 0) {
@@ -406,6 +416,7 @@ export async function uploadExcelAction(formData: FormData) {
 }
 
 export async function createInvoiceWithItemsAction(formData: FormData) {
+  await assertSection("finance")
   const customer = formData.get("customer") as string;
   const attn = formData.get("attn") as string;
   const cc = (formData.get("cc") as string)?.trim() || "-";
@@ -456,13 +467,30 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
   }
 
   // 🌟 LOGIKA AUTO-FILL ALAMAT SEBELUM INSERT DATABASE
+  // Prioritas 1: cari langsung di tabel Customer (termasuk customer yang baru
+  // saja dibuat lewat tombol "+ Customer Baru" di Quotation Maker).
+  // Prioritas 2 (fallback): daftar hardcoded lama, untuk data customer lama
+  // yang belum sempat di-seed ke tabel Customer.
   const cleanInput = customer.toUpperCase().trim();
   let detectedAddress = "-"; // Default fallback aman jika tidak cocok
 
-  for (const [name, data] of Object.entries(CUSTOMER_DATA)) {
-    if (cleanInput === name.toUpperCase()) {
-      detectedAddress = data.address; // Alamat otomatis ditarik dari list data di atas
-      break;
+  const matchedCustomer = await prisma.customer.findFirst({
+    where: {
+      name: {
+        equals: customer.trim(),
+        mode: "insensitive",
+      },
+    },
+  });
+
+  if (matchedCustomer) {
+    detectedAddress = matchedCustomer.address;
+  } else {
+    for (const [name, data] of Object.entries(CUSTOMER_DATA)) {
+      if (cleanInput === name.toUpperCase()) {
+        detectedAddress = data.address; // Alamat otomatis ditarik dari list data lama
+        break;
+      }
     }
   }
 
@@ -538,6 +566,7 @@ export async function createInvoiceWithItemsAction(formData: FormData) {
 }
 
 export async function updateInvoiceAction(formData: FormData) {
+  await assertSection("finance")
   const noInv = formData.get("noInv") as string;
   const originalNoInv = formData.get("originalNoInv") as string;
   const quotationNumber = formData.get("quotationNumber") as string;
@@ -726,6 +755,7 @@ export async function updateInvoiceAction(formData: FormData) {
 }
 
 export async function getNextSubItemNumber(customerName: string) {
+  await assertSection("finance")
   try {
     const now = new Date();
 
@@ -770,4 +800,103 @@ export async function getNextSubItemNumber(customerName: string) {
     console.error("Error counting sub-items:", error);
     return "001"; // Fallback aman
   }
+}
+
+export async function createDespactAction(
+  formData: FormData,
+): Promise<string | void> {
+  await assertSection("finance");
+  const customerName = String(formData.get("customer") ?? "").trim();
+
+  // new despacts must carry the quotation and PO numbers (older ones simply have none)
+  const quotationNumber = String(formData.get("quotationNumber") ?? "").trim();
+  if (!quotationNumber || quotationNumber === "-") {
+    return "Nomor Quotation wajib diisi.";
+  }
+  const poNumber = String(formData.get("poNumber") ?? "").trim();
+  if (!poNumber || poNumber === "-") {
+    return "Nomor PO wajib diisi.";
+  }
+
+  let items: {
+    description: string;
+    qty: number;
+    amountIdr: number;
+    unit: "pcs" | "unit" | "set";
+    status: DespactStatus;
+    doNumber?: string;
+  }[];
+  try {
+    items = JSON.parse(String(formData.get("itemsJson") ?? "[]"));
+  } catch {
+    return "Data item tidak valid.";
+  }
+
+  if (!Array.isArray(items) || items.length === 0) return "Min 1 Item.";
+
+  for (const i of items) {
+    if (!i.description?.trim()) return "Deskripsi item wajib diisi.";
+    if (!Number.isInteger(i.qty) || i.qty <= 0) return "Qty item tidak valid.";
+    if (!(i.amountIdr > 0)) return "Amount item tidak valid.";
+    if (!["pcs", "unit", "set"].includes(i.unit)) return "Unit tidak valid.";
+    if (!STATUS_VALUES.includes(i.status)) return "Status item tidak valid.";
+    // closing needs an invoice number, which is only collected from the finance list
+    if (i.status === "CLOSE") {
+      return "Item tidak bisa dibuat langsung Close. Tutup lewat daftar Despact dengan Nomor Invoice.";
+    }
+    // Ready Delivery (and later) needs a DO number
+    if (i.status !== "ON_PROCESS") {
+      const dn = String(i.doNumber ?? "").trim();
+      if (!dn || dn === "-") return "Nomor DO wajib diisi untuk status Ready Delivery.";
+      if (dn.length > 50) return "Nomor DO maksimal 50 karakter.";
+    }
+  }
+
+  const customer = await prisma.customer.findFirst({
+    where: { name: { equals: customerName, mode: "insensitive" } },
+  });
+  if (!customer) return "Customer tidak ditemukan.";
+
+  const totalIdr = items.reduce((s, i) => s + i.amountIdr * i.qty, 0);
+
+  const poDate = new Date(String(formData.get("poDate")));
+  const dueDate = new Date(String(formData.get("dueDate")));
+  if (isNaN(poDate.getTime()) || isNaN(dueDate.getTime())) {
+    return "Tanggal tidak valid.";
+  }
+  if (dueDate < poDate) {
+    return "Due Date tidak boleh sebelum PO Date.";
+  }
+
+  try {
+    await prisma.despact.create({
+      data: {
+        registrationNumber: String(formData.get("registrationNumber")),
+        quotationNumber,
+        poNumber,
+        customerId: customer.id,
+        attn: String(formData.get("attn")),
+        shortDescription: String(formData.get("shortDescription") || "-"),
+        poDate,
+        dueDate,
+        totalIdr,
+        items: {
+          create: items.map((i) => ({
+            description: i.description.trim(),
+            qty: i.qty,
+            unit: i.unit,
+            amountIdr: i.amountIdr,
+            status: i.status,
+            doNumber:
+              i.status === "ON_PROCESS" ? null : String(i.doNumber).trim(),
+          })),
+        },
+      },
+    });
+  } catch (e) {
+    console.error(e);
+    return "Gagal menyimpan Despact (nomor registrasi mungkin sudah ada).";
+  }
+
+  redirect("/dashboard/finance/job-despact-list");
 }

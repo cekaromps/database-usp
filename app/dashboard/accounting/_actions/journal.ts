@@ -1,4 +1,6 @@
 "use server";
+
+import { assertSection } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -17,6 +19,7 @@ export async function createJournalEntry(formData: {
     job?: string;
     lines: JournalLineInput[];
 }) {
+  await assertSection("finance")
     // DEBIT = KREDIT
     const totalDebit = formData.lines.reduce(
         (sum, line) => sum + Number(line.debit),
@@ -137,6 +140,7 @@ function parseExcelDate(dateStr: string): Date {
 }
 
 export async function getJournalEntries() {
+  await assertSection("finance")
     return await prisma.journalEntry.findMany({
         include: {
             lines: {
@@ -155,6 +159,7 @@ export async function getJournalEntries() {
 }
 
 export async function truncateJournals() {
+  await assertSection("finance")
     try {
         await prisma.$transaction([
             prisma.journalLine.deleteMany({}),
@@ -175,6 +180,7 @@ export async function truncateJournals() {
 }
 
 export async function importPettyCashExcel(rows: any[]) {
+  await assertSection("finance")
     try {
         // 1. Ambil info COA Kas Kecil kamu dari database.
         // Pastikan kode '102' ini sesuai dengan kode akun Petty Cash di database kamu ya brayy!

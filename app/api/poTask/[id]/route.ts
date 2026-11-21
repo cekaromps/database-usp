@@ -1,3 +1,4 @@
+import { checkSection } from "@/lib/rbac"
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendPushToAll } from "@/lib/sendPush";
@@ -6,6 +7,7 @@ export const PATCH = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+  if (!(await checkSection(["production", "finance"]))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const { id } = await params;
     const body = await request.json();
@@ -68,6 +70,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }, // 🔥 FIX 1: Ubah tipe params menjadi Promise
 ) {
+  if (!(await checkSection(["production", "finance"]))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     // 🔥 FIX 2: Wajib jalankan 'await' pada params terlebih dahulu
     const resolvedParams = await params;

@@ -1,3 +1,4 @@
+import { checkSection } from "@/lib/rbac";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { TaskStage } from "@/lib/generated/prisma/enums";
@@ -16,6 +17,7 @@ export const PATCH = async (
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+  if (!(await checkSection(["production", "finance"]))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const { id } = await params;
     const task = await prisma.poTask.findUnique({

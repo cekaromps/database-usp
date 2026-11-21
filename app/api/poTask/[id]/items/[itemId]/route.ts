@@ -1,3 +1,4 @@
+import { checkSection } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -5,6 +6,7 @@ export const PATCH = async (
   request: Request,
   { params }: { params: Promise<{ id: string; itemId: string }> },
 ) => {
+  if (!(await checkSection(["production", "finance"]))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const { itemId } = await params;
     const { isCompleted, notes } = await request.json();

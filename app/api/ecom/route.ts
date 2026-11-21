@@ -1,3 +1,4 @@
+import { checkSection } from "@/lib/rbac"
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isValidEcomCategory } from "@/lib/ecomCategories";
@@ -31,6 +32,7 @@ async function saveImageIfPresent(image: File | null): Promise<string | null> {
 
 // GET /api/ecom?search=...&category=... — list all items, newest first
 export async function GET(request: NextRequest) {
+  if (!(await checkSection("production"))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim();
@@ -54,6 +56,7 @@ export async function GET(request: NextRequest) {
 // Accepts multipart/form-data: name, price, size, diameter?, quantity, image? (file)
 // Also accepts application/json (without image) for simple mobile clients.
 export async function POST(request: NextRequest) {
+  if (!(await checkSection("production"))) return Response.json({ error: "Forbidden" }, { status: 403 })
   try {
     const contentType = request.headers.get("content-type") || "";
 
