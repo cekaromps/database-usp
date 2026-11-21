@@ -216,3 +216,10 @@ model Ecom {
   @@index([category])
 }
 
+model Customer {
+  id           Int           @id @default(autoincrement())
+  customerCode String
+  name         String
+  address      String
+  createdAt    DateTime       
+}

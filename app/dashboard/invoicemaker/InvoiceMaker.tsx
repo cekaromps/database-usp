@@ -8,7 +8,7 @@ interface ItemRow {
   description: string;
   qty: number;
   amountIdr: number;
-  materials: string[]; // ← was: material: string
+  materials: string[]; 
   processes: string[];
   unit: "pcs" | "unit" | "set";
 }

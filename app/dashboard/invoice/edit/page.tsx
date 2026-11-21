@@ -5,6 +5,7 @@ import { decrypt } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { updateInvoiceAction } from "@/app/actions/record";
+import EditableItems from "./EditableItems";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,10 @@ export default async function EditInvoicePage({ searchParams }: EditPageProps) {
         .toISOString()
         .split("T")[0];
 
+    const field =
+        "w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue";
+    const label = "block text-xs font-medium text-macos-secondary mb-1.5";
+
     return (
         <div className="min-h-screen bg-macos-base text-macos-primary p-10 font-sans antialiased">
             {/* HEADER SECTION */}
@@ -71,147 +76,62 @@ export default async function EditInvoicePage({ searchParams }: EditPageProps) {
             <div className="max-w-3xl mx-auto bg-macos-popover border border-macos-separator p-6 rounded-xl shadow-2xl">
                 <form action={updateInvoiceAction} className="space-y-6">
                     {/* Kirim ID secara rahasia sebagai penanda identitas baris data */}
-                    <input
-                        type="hidden"
-                        name="originalNoInv"
-                        value={invoice.noInv}
-                    />
+                    <input type="hidden" name="originalNoInv" value={invoice.noInv} />
                     <input
                         type="hidden"
                         name="originalQuotationNumber"
                         value={invoice.quotationNumber}
                     />
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                            Quotation Number *
-                        </label>
+                        <label className={label}>Quotation Number *</label>
                         <input
                             name="quotationNumber"
                             type="text"
                             required
                             defaultValue={invoice.quotationNumber}
-                            className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue font-mono font-semibold"
+                            className={`${field} font-mono font-semibold`}
                         />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div>
-                            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                                Customer / To *
-                            </label>
-                            <input
-                                name="customer"
-                                type="text"
-                                required
-                                defaultValue={invoice.customer}
-                                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue"
-                            />
+                            <label className={label}>Customer / To *</label>
+                            <input name="customer" type="text" required defaultValue={invoice.customer} className={field} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                                Attn *
-                            </label>
-                            <input
-                                name="attn"
-                                type="text"
-                                required
-                                defaultValue={invoice.attn}
-                                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue"
-                            />
+                            <label className={label}>Attn *</label>
+                            <input name="attn" type="text" required defaultValue={invoice.attn} className={field} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                                CC
-                            </label>
-                            <input
-                                name="cc"
-                                type="text"
-                                defaultValue={invoice.cc}
-                                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue"
-                            />
+                            <label className={label}>CC</label>
+                            <input name="cc" type="text" defaultValue={invoice.cc} className={field} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                                Term *
-                            </label>
-                            <input
-                                name="term"
-                                type="text"
-                                required
-                                defaultValue={invoice.term}
-                                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue"
-                            />
+                            <label className={label}>Term *</label>
+                            <input name="term" type="text" required defaultValue={invoice.term} className={field} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                                Validity *
-                            </label>
-                            <input
-                                name="validity"
-                                type="text"
-                                required
-                                defaultValue={invoice.validity}
-                                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue"
-                            />
+                            <label className={label}>Validity *</label>
+                            <input name="validity" type="text" required defaultValue={invoice.validity} className={field} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                                Lead Time *
-                            </label>
-                            <input
-                                name="leadTime"
-                                type="text"
-                                required
-                                defaultValue={invoice.leadTime}
-                                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue"
-                            />
+                            <label className={label}>Lead Time *</label>
+                            <input name="leadTime" type="text" required defaultValue={invoice.leadTime} className={field} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                                Date *
-                            </label>
-                            <input
-                                name="dateDelivery"
-                                type="date"
-                                required
-                                defaultValue={formattedDate}
-                                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue scheme-dark"
-                            />
+                            <label className={label}>Date *</label>
+                            <input name="dateDelivery" type="date" required defaultValue={formattedDate} className={`${field} scheme-dark`} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                                No. Invoice *
-                            </label>
-                            <input
-                                name="noInv"
-                                type="text"
-                                required
-                                defaultValue={invoice.noInv}
-                                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue font-semibold"
-                            />
+                            <label className={label}>No. Invoice *</label>
+                            <input name="noInv" type="text" required defaultValue={invoice.noInv} className={`${field} font-semibold`} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                                From *
-                            </label>
-                            <input
-                                name="fromUser"
-                                type="text"
-                                required
-                                defaultValue={invoice.fromUser}
-                                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue"
-                            />
+                            <label className={label}>From *</label>
+                            <input name="fromUser" type="text" required defaultValue={invoice.fromUser} className={field} />
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-macos-secondary mb-1.5">
-                                Handphone *
-                            </label>
-                            <input
-                                name="handphone"
-                                type="text"
-                                required
-                                defaultValue={invoice.handphone}
-                                className="w-full bg-macos-tertiary border border-macos-separator text-macos-primary rounded-md p-2 focus:outline-none focus:border-macos-blue"
-                            />
+                            <label className={label}>Handphone *</label>
+                            <input name="handphone" type="text" required defaultValue={invoice.handphone} className={field} />
                         </div>
 
                         {/* SEKSI SPESIFIKASI BARANG DAN HARGA */}
@@ -220,74 +140,14 @@ export default async function EditInvoicePage({ searchParams }: EditPageProps) {
                                 Invoice Items
                             </h3>
 
-                            <div className="space-y-4">
-                                {invoices.map((item, index) => (
-                                    <div
-                                        key={item.id}
-                                        className="border border-macos-separator rounded-xl p-4 bg-macos-tertiary/20"
-                                    >
-                                        {/* hidden id item */}
-                                        <input
-                                            type="hidden"
-                                            name={`items[${index}].id`}
-                                            value={item.id}
-                                        />
-
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="text-xs font-bold text-macos-blue">
-                                                ITEM #{index + 1}
-                                            </span>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs mb-1.5 text-macos-secondary">
-                                                    Description
-                                                </label>
-
-                                                <textarea
-                                                    name={`items[${index}].description`}
-                                                    defaultValue={
-                                                        item.description
-                                                    }
-                                                    rows={4}
-                                                    suppressHydrationWarning
-                                                    className="w-full bg-macos-tertiary border border-macos-separator rounded-md p-2"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-xs mb-1.5 text-macos-secondary">
-                                                    Qty
-                                                </label>
-
-                                                <input
-                                                    type="number"
-                                                    name={`items[${index}].qty`}
-                                                    defaultValue={item.qty}
-                                                    className="w-full bg-macos-tertiary border border-macos-separator rounded-md p-2"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-xs mb-1.5 text-macos-secondary">
-                                                    Amount IDR
-                                                </label>
-
-                                                <input
-                                                    type="number"
-                                                    step="any"
-                                                    name={`items[${index}].amountIdr`}
-                                                    defaultValue={
-                                                        item.amountIdr
-                                                    }
-                                                    className="w-full bg-macos-tertiary border border-macos-separator rounded-md p-2"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <EditableItems
+                                initialItems={invoices.map((it) => ({
+                                    id: it.id,
+                                    description: it.description,
+                                    qty: it.qty,
+                                    amountIdr: it.amountIdr,
+                                }))}
+                            />
                         </div>
                     </div>
 

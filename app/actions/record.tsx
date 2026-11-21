@@ -620,6 +620,16 @@ export async function updateInvoiceAction(formData: FormData) {
       }
     });
 
+    // Items still present in the form (removed items are simply not submitted).
+    // Only accept ids that really belong to this invoice.
+    const originalIds = new Set(originalItems.map((it) => it.id));
+    const keptItems = groupedItems.filter(
+      (item) => item && item.id && originalIds.has(item.id),
+    );
+    if (keptItems.length === 0) {
+      return "An invoice must have at least one item";
+    }
+
     if (isRevision) {
       // =========================
       // REVISION: create a brand new invoice, leave the old one untouched
@@ -637,8 +647,7 @@ export async function updateInvoiceAction(formData: FormData) {
       const originalById = new Map(originalItems.map((it) => [it.id, it]));
 
       await prisma.invoice.createMany({
-        data: groupedItems
-          .filter((item) => item.id)
+        data: keptItems
           .map((item) => {
             const original = originalById.get(item.id);
             return {
@@ -688,8 +697,13 @@ export async function updateInvoiceAction(formData: FormData) {
         },
       });
 
-      for (const item of groupedItems) {
-        if (!item.id) continue;
+      // Delete rows the user removed in the form
+      const keptIds = keptItems.map((item) => item.id);
+      await prisma.invoice.deleteMany({
+        where: { noInv: originalNoInv, id: { notIn: keptIds } },
+      });
+
+      for (const item of keptItems) {
         await prisma.invoice.update({
           where: { id: item.id },
           data: {
