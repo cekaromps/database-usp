@@ -240,14 +240,6 @@ model Ecom {
 }
 
 model Customer {
-<<<<<<< HEAD
-  id           Int           @id @default(autoincrement())
-  customerCode String
-  name         String
-  address      String
-  createdAt    DateTime       
-}
-=======
   id          Int      @id @default(autoincrement())
   code        String   @unique @db.VarChar(3)
   name        String
@@ -324,4 +316,3 @@ model SoaStatement {
   @@unique([customerId, period])
   @@index([period])
 }
->>>>>>> 8f8c41f125dece11ffd0f432b1476eac12abf5b1
