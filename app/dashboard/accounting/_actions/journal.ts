@@ -8,6 +8,8 @@ export type JournalLineInput = {
     accountId: string;
     debit: number;
     credit: number;
+    invoiceNo: string;
+    lines: journalLineInput[];
 };
 
 export async function createJournalEntry(formData: {
@@ -17,18 +19,16 @@ export async function createJournalEntry(formData: {
     qty?: number;
     uom?: string;
     job?: string;
-    lines: JournalLineInput[];
+    invoices: JournalInvoiceInput[];
 }) {
-  await assertSection("finance")
-    // DEBIT = KREDIT
-    const totalDebit = formData.lines.reduce(
-        (sum, line) => sum + Number(line.debit),
-        0,
+    await assertSection("finance");
+
+    const allLines = formData.invoices.flatMap((inv) =>
+        inv.lines.map((line) => ({ ...line, invoiceNo: inv.invoiceNo })),
     );
-    const totalCredit = formData.lines.reduce(
-        (sum, line) => sum + Number(line.credit),
-        0,
-    );
+
+    const totalDebit = allLines.reduce((s, l) => s + Number(l.debit), 0);
+    const totalCredit = allLines.reduce((s, l) => s + Number(l.credit), 0);
 
     if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
         return { success: false, error: "Total debit dan kredit harus sama." };
@@ -46,10 +46,11 @@ export async function createJournalEntry(formData: {
                     job: formData.job || "",
                     status: "POSTED",
                     lines: {
-                        create: formData.lines.map((line) => ({
-                            accountId: line.accountId,
-                            debit: line.debit,
-                            credit: line.credit,
+                        create: allLines.map((l) => ({
+                            accountId: l.accountId,
+                            debit: l.debit,
+                            credit: l.credit,
+                            invoiceNo: l.invoiceNo,
                         })),
                     },
                 },
@@ -59,10 +60,7 @@ export async function createJournalEntry(formData: {
         return { success: true };
     } catch (error) {
         console.error("Error creating journal entry:", error);
-        return {
-            success: false,
-            error: "Terjadi kesalahan saat membuat jurnal entry.",
-        };
+        return { success: false, error: "Terjadi kesalahan saat membuat jurnal entry." };
     }
 }
 
