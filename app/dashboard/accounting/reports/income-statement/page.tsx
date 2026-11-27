@@ -10,7 +10,7 @@ import {
 
 const COMPANY_KEY = "accounting:companyName";
 const DEFAULT_COMPANY =
-    process.env.NEXT_PUBLIC_COMPANY_NAME || "Nama Perusahaan";
+    process.env.NEXT_PUBLIC_COMPANY_NAME || "PT. Utama Pasogit Sejahtera";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toISO = (d: Date) =>
