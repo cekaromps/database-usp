@@ -9,7 +9,7 @@ export default async function AccountingLayout({
     await requireSection("finance");
     return (
         <div className="flex flex-col min-h-screen bg-macos-secondary">
-            <header className="bg-macos-secondary border-b border-gray-200 px-6 py-3 flex items-center gap-6">
+            <header className="bg-macos-secondary border-b border-gray-200 px-6 py-3 flex items-center gap-6 print:hidden">
                 <h2 className="font-semibold text-macos-primary border-r pr-6 border-gray-300">
                     Modul Akuntansi
                 </h2>
@@ -31,6 +31,12 @@ export default async function AccountingLayout({
                         className="hover:text-blue-600 text-macos-secondary transition"
                     >
                         Jurnal Umum
+                    </Link>
+                    <Link
+                        href="/dashboard/accounting/reports/income-statement"
+                        className="hover:text-blue-600 text-macos-secondary transition"
+                    >
+                        Laporan Laba Rugi
                     </Link>
                     <Link
                         href="/dashboard/accounting/journal/import"

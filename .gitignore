@@ -46,3 +46,6 @@ next-env.d.ts
 
 certificates
 uploads/ecom
+
+# Windows download metadata (invalid filename on Windows checkouts)
+*:Zone.Identifier

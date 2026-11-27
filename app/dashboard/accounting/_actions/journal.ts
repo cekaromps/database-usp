@@ -8,8 +8,11 @@ export type JournalLineInput = {
     accountId: string;
     debit: number;
     credit: number;
+};
+
+export type JournalInvoiceInput = {
     invoiceNo: string;
-    lines: journalLineInput[];
+    lines: JournalLineInput[];
 };
 
 export async function createJournalEntry(formData: {
@@ -21,14 +24,37 @@ export async function createJournalEntry(formData: {
     job?: string;
     invoices: JournalInvoiceInput[];
 }) {
-    await assertSection("finance");
+  await assertSection("finance")
 
+    if (!Array.isArray(formData.invoices) || formData.invoices.length === 0) {
+        return {
+            success: false,
+            error: "Minimal harus ada 1 invoice di dalam jurnal ini.",
+        };
+    }
+    if (formData.invoices.some((inv) => !inv.invoiceNo?.trim())) {
+        return { success: false, error: "No. Invoice wajib diisi." };
+    }
+
+    // Ratakan semua baris dari semua invoice, bawa invoiceNo ke tiap baris
     const allLines = formData.invoices.flatMap((inv) =>
-        inv.lines.map((line) => ({ ...line, invoiceNo: inv.invoiceNo })),
+        inv.lines.map((line) => ({
+            accountId: line.accountId,
+            debit: line.debit,
+            credit: line.credit,
+            invoiceNo: inv.invoiceNo.trim(),
+        })),
     );
 
-    const totalDebit = allLines.reduce((s, l) => s + Number(l.debit), 0);
-    const totalCredit = allLines.reduce((s, l) => s + Number(l.credit), 0);
+    // DEBIT = KREDIT
+    const totalDebit = allLines.reduce(
+        (sum, line) => sum + Number(line.debit),
+        0,
+    );
+    const totalCredit = allLines.reduce(
+        (sum, line) => sum + Number(line.credit),
+        0,
+    );
 
     if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
         return { success: false, error: "Total debit dan kredit harus sama." };
@@ -46,12 +72,7 @@ export async function createJournalEntry(formData: {
                     job: formData.job || "",
                     status: "POSTED",
                     lines: {
-                        create: allLines.map((l) => ({
-                            accountId: l.accountId,
-                            debit: l.debit,
-                            credit: l.credit,
-                            invoiceNo: l.invoiceNo,
-                        })),
+                        create: allLines,
                     },
                 },
             });
@@ -60,7 +81,10 @@ export async function createJournalEntry(formData: {
         return { success: true };
     } catch (error) {
         console.error("Error creating journal entry:", error);
-        return { success: false, error: "Terjadi kesalahan saat membuat jurnal entry." };
+        return {
+            success: false,
+            error: "Terjadi kesalahan saat membuat jurnal entry.",
+        };
     }
 }
 
@@ -181,14 +205,14 @@ export async function importPettyCashExcel(rows: any[]) {
   await assertSection("finance")
     try {
         // 1. Ambil info COA Kas Kecil kamu dari database.
-        // Pastikan kode '102' ini sesuai dengan kode akun Petty Cash di database kamu ya brayy!
+        // Pastikan kode '109' ini sesuai dengan kode akun Petty Cash di database kamu ya brayy!
         const coaList = await prisma.chartOfAccount.findMany();
         const akunPettyCash = coaList.find((acc) => acc.code === "109");
 
         if (!akunPettyCash) {
             return {
                 success: false,
-                error: "Akun Petty Cash dengan kode [102] belum dibuat di COA brayy.",
+                error: "Akun Petty Cash dengan kode [109] belum dibuat di COA brayy.",
             };
         }
 
@@ -204,6 +228,9 @@ export async function importPettyCashExcel(rows: any[]) {
                     );
                 }
 
+                // No. invoice wajib di JournalLine; pakai no dokumen dari Excel
+                const invoiceNo = row.no_dokumen || "PETTY-CASH";
+
                 // 3. Tentukan posisi debit kredit berdasarkan jenis arus kasnya
                 let linesData = [];
                 if (row.type === "INCOME") {
@@ -212,16 +239,28 @@ export async function importPettyCashExcel(rows: any[]) {
                             accountId: akunPettyCash.id,
                             debit: nominal,
                             credit: 0,
+                            invoiceNo,
                         }, // Petty cash bertambah di Debit
-                        { accountId: akunLawanId, debit: 0, credit: nominal }, // Akun lawan di Kredit
+                        {
+                            accountId: akunLawanId,
+                            debit: 0,
+                            credit: nominal,
+                            invoiceNo,
+                        }, // Akun lawan di Kredit
                     ];
                 } else {
                     linesData = [
-                        { accountId: akunLawanId, debit: nominal, credit: 0 }, // Beban bertambah di Debit
+                        {
+                            accountId: akunLawanId,
+                            debit: nominal,
+                            credit: 0,
+                            invoiceNo,
+                        }, // Beban bertambah di Debit
                         {
                             accountId: akunPettyCash.id,
                             debit: 0,
                             credit: nominal,
+                            invoiceNo,
                         }, // Petty cash berkurang di Kredit
                     ];
                 }
