@@ -7,7 +7,6 @@ export default function FinancialReportPage() {
     const [reportData, setReportData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
-    // Set filter range tanggal bawaan bulan ini
     const [startDate, setStartDate] = useState("2026-06-01");
     const [endDate, setEndDate] = useState("2026-06-30");
 
